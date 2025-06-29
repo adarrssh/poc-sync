@@ -1,0 +1,206 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
+import { SOCKET_CONFIG } from './config';
+import Hls from 'hls.js';
+
+// HLS video URL
+const VIDEO_URL = 'https://stream-sync-video.s3.ap-south-1.amazonaws.com/hls/1751191482472-49b0d462-15e3-4c4a-b7af-4f6fc801aa4f/master.m3u8';
+
+function getRoomId() {
+  return new URLSearchParams(window.location.search).get('roomId') || 'default';
+}
+
+export default function Viewer() {
+  const videoRef = useRef();
+  const socketRef = useRef();
+  const pendingSeek = useRef(null);
+  const hasReceivedInitialSync = useRef(false);
+  const hlsRef = useRef();
+  const [joinStatus, setJoinStatus] = useState('');
+  const [ready, setReady] = useState(false);
+
+  // Initialize HLS player
+  useEffect(() => {
+    if (!ready) return;
+    
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hlsRef.current = hls;
+      hls.loadSource(VIDEO_URL);
+      hls.attachMedia(video);
+      
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log('HLS manifest loaded successfully');
+      });
+      
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error('HLS error:', data);
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // For Safari which has native HLS support
+      video.src = VIDEO_URL;
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+    };
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const socket = io(SOCKET_CONFIG.url);
+    socketRef.current = socket;
+    socket.on('join-success', (data) => {
+      console.log('join-success', data);
+      setJoinStatus('Successfully joined room!');
+    });
+    socket.on('join-error', (err) => {
+      console.error('join-error', err);
+      setJoinStatus('Error: ' + (err.message || 'Could not join room'));
+    });
+    socket.on('user-left', (data) => {
+      console.log(`User left: ${data.role} with socketId: ${data.socketId}`);
+      if (data.role === 'host') {
+        setJoinStatus('Host has left the room. The session has ended.');
+      }
+    });
+    
+    // Handle initial sync when joining a room with active video
+    socket.on('initial-sync', (videoState) => {
+      console.log('Received initial sync:', videoState);
+      const video = videoRef.current;
+      if (!video) return;
+      
+      // Mark that we've received initial sync
+      hasReceivedInitialSync.current = true;
+      
+      const handleInitialSync = async () => {
+        try {
+          if (video.readyState < 1) {
+            // Video not ready yet, store the sync info
+            pendingSeek.current = { 
+              time: videoState.currentTime, 
+              play: videoState.isPlaying 
+            };
+            return;
+          }
+          
+          // Set the current time
+          video.currentTime = videoState.currentTime;
+          
+          // If video was playing, start playing
+          if (videoState.isPlaying) {
+            await video.play();
+            console.log(`Auto-resumed video at ${videoState.currentTime}s`);
+          } else {
+            video.pause();
+            console.log(`Synced to paused video at ${videoState.currentTime}s`);
+          }
+        } catch (err) {
+          console.warn('Could not auto-resume video:', err);
+        }
+      };
+      
+      handleInitialSync();
+    });
+    
+    const roomId = getRoomId();
+    socket.emit('join', { roomId, role: 'viewer' });
+    return () => socket.disconnect();
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const video = videoRef.current;
+    const socket = socketRef.current;
+    if (!video || !socket) return;
+
+    const handleSync = async ({ type, currentTime }) => {
+      try {
+        if (type === 'play') {
+          if (Math.abs(video.currentTime - currentTime) > 0.5) {
+            await seekAndPlay(currentTime);
+          } else {
+            await video.play();
+          }
+        } else if (type === 'pause') {
+          video.pause();
+        } else if (type === 'seek') {
+          seekAndPause(currentTime);
+        }
+      } catch (err) {
+        // Optionally show a message to the user
+        console.warn('Autoplay blocked, user interaction required.');
+      }
+    };
+
+    const seekAndPlay = async (time) => {
+      if (video.readyState < 1) {
+        pendingSeek.current = { time, play: true };
+        return;
+      }
+      video.currentTime = time;
+      await video.play();
+    };
+    const seekAndPause = (time) => {
+      if (video.readyState < 1) {
+        pendingSeek.current = { time, play: false };
+        return;
+      }
+      video.currentTime = time;
+      video.pause();
+    };
+
+    socket.on('sync-event', handleSync);
+
+    // Handle video load for pending seek
+    const onLoaded = () => {
+      if (pendingSeek.current) {
+        video.currentTime = pendingSeek.current.time;
+        if (pendingSeek.current.play) video.play();
+        else video.pause();
+        pendingSeek.current = null;
+      }
+    };
+    video.addEventListener('loadeddata', onLoaded);
+
+    return () => {
+      socket.off('sync-event', handleSync);
+      video.removeEventListener('loadeddata', onLoaded);
+    };
+  }, [ready]);
+
+  if (!ready) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+        <button
+          className="px-6 py-3 bg-blue-600 text-white rounded text-lg"
+          onClick={() => setReady(true)}
+        >
+          Start Watching
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+      <h1 className="text-2xl font-bold mb-4">Viewer View</h1>
+      {joinStatus && (
+        <div className={`mb-4 px-4 py-2 rounded ${joinStatus.startsWith('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{joinStatus}</div>
+      )}
+      
+      {/* HLS Video Player */}
+      <video
+        ref={videoRef}
+        controls={false} // Viewers don't need controls as they sync with host
+        className="w-full max-w-2xl rounded shadow"
+      />
+    </div>
+  );
+} 
