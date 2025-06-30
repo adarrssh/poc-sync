@@ -1,11 +1,46 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
+const mongoose = require('mongoose');
 const { Server } = require('socket.io');
+
+// Import routes and middleware
+const authRoutes = require('./routes/auth');
+const { authenticate, optionalAuth } = require('./middleware/auth');
 
 // Initialize Express app
 const app = express();
-app.use(cors());
+
+// Middleware
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5001', 'http://127.0.0.1:3000', 'http://127.0.0.1:5000', 'http://127.0.0.1:5001'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Add request logging for debugging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Connect to MongoDB
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/video-sync-app');
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
+  }
+};
+
+// Connect to database
+connectDB();
 
 // Create HTTP server and attach Socket.IO
 const server = http.createServer(app);
@@ -15,6 +50,9 @@ const io = new Server(server, {
     methods: ['GET', 'POST']
   }
 });
+
+// API Routes
+app.use('/api/auth', authRoutes);
 
 /**
  * ROOM MANAGEMENT STRUCTURE
@@ -209,13 +247,29 @@ io.on('connection', (socket) => {
   });
 });
 
-// Simple health check endpoint
+// Health check endpoint
 app.get('/', (req, res) => {
-  res.send('Video Sync Backend Running');
+  res.json({
+    message: 'Video Sync Backend Running',
+    status: 'OK',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API health check
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API is running',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Start the server
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
+  console.log(`API available at http://localhost:${PORT}/api`);
+  console.log(`Socket.IO available at http://localhost:${PORT}`);
 }); 

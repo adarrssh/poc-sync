@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { SOCKET_CONFIG } from './config';
+import { useAuth } from './context/AuthContext';
 import Hls from 'hls.js';
 
 // HLS video URL
@@ -32,6 +33,15 @@ export default function Host() {
   const roomId = getOrCreateRoomId();
   const [joinStatus, setJoinStatus] = useState('');
   const [viewers, setViewers] = useState([]);
+  
+  // Authentication
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   // Initialize HLS player
   useEffect(() => {
@@ -200,34 +210,54 @@ export default function Host() {
   const shareUrl = `${window.location.origin}/viewer?roomId=${roomId}`;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-      <h1 className="text-2xl font-bold mb-2">Host View</h1>
-      <div className="mb-2 text-gray-700">Room ID: <span className="font-mono">{roomId}</span></div>
-      <div className="mb-2 text-gray-700">Share this link with viewers:</div>
-      <div className="mb-4 font-mono text-blue-700 bg-blue-100 px-2 py-1 rounded break-all select-all">{shareUrl}</div>
-      <div className="mb-4 text-gray-700">Your Socket ID: <span className="font-mono">{socketId}</span></div>
-      {joinStatus && (
-        <div className={`mb-4 px-4 py-2 rounded ${joinStatus.startsWith('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{joinStatus}</div>
-      )}
-      <div className="mb-4 w-full max-w-2xl">
-        <div className="font-semibold mb-1">Viewers in Room:</div>
-        {viewers.length === 0 ? (
-          <div className="text-gray-500">No viewers have joined yet.</div>
-        ) : (
-          <ul className="list-disc pl-5">
-            {viewers.map((id) => (
-              <li key={id} className="font-mono text-sm text-gray-700">{id}</li>
-            ))}
-          </ul>
-        )}
+    <div className="flex flex-col min-h-screen bg-gray-100">
+      {/* Header with user info and logout */}
+      <div className="bg-white shadow-sm border-b px-6 py-4">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-2xl font-bold text-gray-900">Host View</h1>
+            <div className="text-sm text-gray-600">
+              Welcome, <span className="font-semibold">{user?.username}</span>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+          >
+            Logout
+          </button>
+        </div>
       </div>
-      
-      {/* HLS Video Player */}
-      <video
-        ref={videoRef}
-        controls
-        className="w-full max-w-2xl rounded shadow"
-      />
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+        <div className="mb-2 text-gray-700">Room ID: <span className="font-mono">{roomId}</span></div>
+        <div className="mb-2 text-gray-700">Share this link with viewers:</div>
+        <div className="mb-4 font-mono text-blue-700 bg-blue-100 px-2 py-1 rounded break-all select-all">{shareUrl}</div>
+        <div className="mb-4 text-gray-700">Your Socket ID: <span className="font-mono">{socketId}</span></div>
+        {joinStatus && (
+          <div className={`mb-4 px-4 py-2 rounded ${joinStatus.startsWith('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{joinStatus}</div>
+        )}
+        <div className="mb-4 w-full max-w-2xl">
+          <div className="font-semibold mb-1">Viewers in Room:</div>
+          {viewers.length === 0 ? (
+            <div className="text-gray-500">No viewers have joined yet.</div>
+          ) : (
+            <ul className="list-disc pl-5">
+              {viewers.map((id) => (
+                <li key={id} className="font-mono text-sm text-gray-700">{id}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        
+        {/* HLS Video Player */}
+        <video
+          ref={videoRef}
+          controls
+          className="w-full max-w-2xl rounded shadow"
+        />
+      </div>
     </div>
   );
 } 
