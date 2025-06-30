@@ -3,32 +3,62 @@ const http = require('http');
 const cors = require('cors');
 const { Server } = require('socket.io');
 
+// Initialize Express app
 const app = express();
 app.use(cors());
 
+// Create HTTP server and attach Socket.IO
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: '*', // Allow all origins for development
     methods: ['GET', 'POST']
   }
 });
 
-// Room structure: { [roomId]: { host: socketId, viewers: Set<socketId>, videoState: { isPlaying: boolean, currentTime: number } } }
+/**
+ * ROOM MANAGEMENT STRUCTURE
+ * 
+ * Each room contains:
+ * - host: Socket ID of the room host (only one per room)
+ * - viewers: Set of viewer socket IDs (multiple viewers allowed)
+ * - videoState: Current state of video playback (isPlaying, currentTime)
+ * 
+ * Structure: { [roomId]: { host: socketId, viewers: Set<socketId>, videoState: { isPlaying: boolean, currentTime: number } } }
+ */
 const rooms = {};
 
+// Handle new socket connections
 io.on('connection', (socket) => {
+  // Track which room this socket is in and their role
   let joinedRoom = null;
   let isHost = false;
 
+  /**
+   * JOIN ROOM EVENT
+   * 
+   * Handles when a client (host or viewer) wants to join a room
+   * Flow:
+   * 1. Validate roomId and role parameters
+   * 2. Create room if it doesn't exist
+   * 3. Assign role (host or viewer)
+   * 4. Notify other participants
+   * 5. Send initial video state to new viewers
+   */
   socket.on('join', ({ roomId, role }) => {
     console.log(`[JOIN ATTEMPT] socket.id=${socket.id}, role=${role}, roomId=${roomId}`);
+    
+    // Validate required parameters
     if (!roomId || !role) {
       socket.emit('join-error', { message: 'Missing roomId or role' });
       console.log(`[JOIN ERROR] socket.id=${socket.id}, reason=Missing roomId or role`);
       return;
     }
+    
+    // Store room reference for this socket
     joinedRoom = roomId;
+    
+    // Create room if it doesn't exist
     if (!rooms[roomId]) {
       rooms[roomId] = { 
         host: null, 
@@ -36,37 +66,67 @@ io.on('connection', (socket) => {
         videoState: { isPlaying: false, currentTime: 0 }
       };
     }
+    
+    // Handle host joining
     if (role === 'host') {
       rooms[roomId].host = socket.id;
       isHost = true;
       console.log(`[HOST JOINED] socket.id=${socket.id}, roomId=${roomId}`);
+      
+      // Send current viewers list to the host
       socket.emit('viewers-list', { viewers: Array.from(rooms[roomId].viewers) });
-    } else {
+    } 
+    // Handle viewer joining
+    else {
       rooms[roomId].viewers.add(socket.id);
       console.log(`[VIEWER JOINED] socket.id=${socket.id}, roomId=${roomId}`);
+      
       const hostId = rooms[roomId].host;
       if (hostId) {
+        // Notify host about new viewer
         io.to(hostId).emit('viewer-joined', { viewerId: socket.id, roomId });
         io.to(hostId).emit('viewers-list', { viewers: Array.from(rooms[roomId].viewers) });
         
         // Request current video state from host for the new viewer
+        // This ensures the viewer gets the most up-to-date state
         io.to(hostId).emit('request-video-state', { viewerId: socket.id });
       }
       
       // Send current video state to the new viewer (fallback)
+      // This provides immediate sync even if host doesn't respond
       const currentVideoState = rooms[roomId].videoState;
       socket.emit('initial-sync', currentVideoState);
       console.log(`[INITIAL SYNC] Sent to viewer ${socket.id}:`, currentVideoState);
       console.log(`[ROOM STATE] Room ${roomId} state:`, rooms[roomId]);
     }
+    
+    // Join the socket to the room for broadcasting
     socket.join(roomId);
+    
+    // Confirm successful join
     socket.emit('join-success', { roomId, role, socketId: socket.id });
   });
 
+  /**
+   * SYNC EVENT HANDLER
+   * 
+   * Handles video synchronization events from the host
+   * Only the host can emit these events to maintain control
+   * 
+   * Event types:
+   * - 'play': Video started playing
+   * - 'pause': Video paused
+   * - 'seek': Video seeked to new position
+   * 
+   * Flow:
+   * 1. Validate sender is host
+   * 2. Update room's video state
+   * 3. Broadcast to all viewers in the room
+   */
   socket.on('sync-event', (data) => {
-    // Only host can emit sync events
+    // Only host can emit sync events (security check)
     if (isHost && joinedRoom) {
-      // Update the room's video state
+      // Update the room's video state based on event type
       if (data.type === 'play') {
         rooms[joinedRoom].videoState = { isPlaying: true, currentTime: data.currentTime };
       } else if (data.type === 'pause') {
@@ -78,52 +138,83 @@ io.on('connection', (socket) => {
         };
       }
       
-      // Broadcast to all viewers in the room
+      // Broadcast the sync event to all viewers in the room
+      // socket.to() sends to all sockets in the room EXCEPT the sender
       socket.to(joinedRoom).emit('sync-event', data);
       console.log(`[SYNC EVENT] ${data.type} at ${data.currentTime}s, isPlaying: ${rooms[joinedRoom].videoState.isPlaying}`);
     }
   });
 
+  /**
+   * SEND VIDEO STATE HANDLER
+   * 
+   * Handles requests from host to send current video state to a specific viewer
+   * This is used when a new viewer joins and needs to sync with current playback
+   * 
+   * Flow:
+   * 1. Host receives 'request-video-state' event for new viewer
+   * 2. Host responds with current video state via this event
+   * 3. Server forwards the state to the specific viewer
+   */
   socket.on('send-video-state', (data) => {
-    // Only host can send video state
+    // Only host can send video state (security check)
     if (isHost && joinedRoom && data.viewerId) {
       const videoState = {
         isPlaying: data.isPlaying,
         currentTime: data.currentTime
       };
       
-      // Send to specific viewer
+      // Send to specific viewer by their socket ID
       io.to(data.viewerId).emit('initial-sync', videoState);
       console.log(`[VIDEO STATE SENT] To viewer ${data.viewerId}:`, videoState);
     }
   });
 
+  /**
+   * DISCONNECT HANDLER
+   * 
+   * Handles when a socket disconnects (user leaves or connection lost)
+   * 
+   * Flow:
+   * 1. Remove user from room data structure
+   * 2. Notify other participants about the departure
+   * 3. Clean up empty rooms
+   */
   socket.on('disconnect', () => {
     if (joinedRoom) {
       if (isHost) {
+        // Host disconnected
         rooms[joinedRoom].host = null;
+        
         // Notify all viewers that host has left
         io.to(joinedRoom).emit('user-left', { role: 'host', socketId: socket.id });
       } else {
+        // Viewer disconnected
         rooms[joinedRoom].viewers.delete(socket.id);
+        
         // Notify host that viewer has left
         const hostId = rooms[joinedRoom].host;
         if (hostId) {
           io.to(hostId).emit('user-left', { role: 'viewer', socketId: socket.id });
         }
       }
-      // Clean up room if empty
+      
+      // Clean up room if it's completely empty
+      // This prevents memory leaks from abandoned rooms
       if (!rooms[joinedRoom].host && rooms[joinedRoom].viewers.size === 0) {
         delete rooms[joinedRoom];
+        console.log(`[ROOM CLEANUP] Deleted empty room: ${joinedRoom}`);
       }
     }
   });
 });
 
+// Simple health check endpoint
 app.get('/', (req, res) => {
   res.send('Video Sync Backend Running');
 });
 
+// Start the server
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
