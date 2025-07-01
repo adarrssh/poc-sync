@@ -83,8 +83,8 @@ io.on('connection', (socket) => {
    * 4. Notify other participants
    * 5. Send initial video state to new viewers
    */
-  socket.on('join', ({ roomId, role }) => {
-    console.log(`[JOIN ATTEMPT] socket.id=${socket.id}, role=${role}, roomId=${roomId}`);
+  socket.on('join', ({ roomId, role, userInfo }) => {
+    console.log(`[JOIN ATTEMPT] socket.id=${socket.id}, role=${role}, roomId=${roomId}, user=${userInfo?.username || 'Unknown'}`);
     
     // Validate required parameters
     if (!roomId || !role) {
@@ -93,8 +93,10 @@ io.on('connection', (socket) => {
       return;
     }
     
-    // Store room reference for this socket
+    // Store room reference and user info for this socket
     joinedRoom = roomId;
+    socket.username = userInfo?.username || 'Unknown User';
+    socket.userId = userInfo?.id;
     
     // Create room if it doesn't exist
     if (!rooms[roomId]) {
@@ -109,7 +111,7 @@ io.on('connection', (socket) => {
     if (role === 'host') {
       rooms[roomId].host = socket.id;
       isHost = true;
-      console.log(`[HOST JOINED] socket.id=${socket.id}, roomId=${roomId}`);
+      console.log(`[HOST JOINED] socket.id=${socket.id}, roomId=${roomId}, user=${socket.username}`);
       
       // Send current viewers list to the host
       socket.emit('viewers-list', { viewers: Array.from(rooms[roomId].viewers) });
@@ -117,7 +119,7 @@ io.on('connection', (socket) => {
     // Handle viewer joining
     else {
       rooms[roomId].viewers.add(socket.id);
-      console.log(`[VIEWER JOINED] socket.id=${socket.id}, roomId=${roomId}`);
+      console.log(`[VIEWER JOINED] socket.id=${socket.id}, roomId=${roomId}, user=${socket.username}`);
       
       const hostId = rooms[roomId].host;
       if (hostId) {
@@ -140,6 +142,12 @@ io.on('connection', (socket) => {
     
     // Join the socket to the room for broadcasting
     socket.join(roomId);
+    
+    // Notify all users in the room about the new user joining (for chat)
+    socket.to(roomId).emit('user-joined-chat', {
+      username: socket.username,
+      userId: socket.userId
+    });
     
     // Confirm successful join
     socket.emit('join-success', { roomId, role, socketId: socket.id });
@@ -209,6 +217,35 @@ io.on('connection', (socket) => {
   });
 
   /**
+   * CHAT MESSAGE HANDLER
+   * 
+   * Handles chat messages from users in a room
+   * Broadcasts messages to all users in the same room
+   * 
+   * Flow:
+   * 1. Validate message data
+   * 2. Broadcast message to all users in the room
+   * 3. Log the message for debugging
+   */
+  socket.on('send-chat-message', (data) => {
+    if (!joinedRoom || !data.message || !data.username) {
+      console.log(`[CHAT ERROR] Invalid message data from ${socket.id}`);
+      return;
+    }
+
+    const messageData = {
+      message: data.message,
+      username: data.username,
+      userId: data.userId,
+      timestamp: new Date().toISOString()
+    };
+
+    // Broadcast to all users in the room (including sender)
+    io.to(joinedRoom).emit('chat-message', messageData);
+    console.log(`[CHAT MESSAGE] ${data.username} in room ${joinedRoom}: ${data.message}`);
+  });
+
+  /**
    * DISCONNECT HANDLER
    * 
    * Handles when a socket disconnects (user leaves or connection lost)
@@ -220,12 +257,19 @@ io.on('connection', (socket) => {
    */
   socket.on('disconnect', () => {
     if (joinedRoom) {
+      // Get user info before cleanup for chat notifications
+      const userInfo = {
+        username: socket.username || 'Unknown User',
+        userId: socket.userId
+      };
+
       if (isHost) {
         // Host disconnected
         rooms[joinedRoom].host = null;
         
         // Notify all viewers that host has left
         io.to(joinedRoom).emit('user-left', { role: 'host', socketId: socket.id });
+        io.to(joinedRoom).emit('user-left-chat', userInfo);
       } else {
         // Viewer disconnected
         rooms[joinedRoom].viewers.delete(socket.id);
@@ -235,6 +279,7 @@ io.on('connection', (socket) => {
         if (hostId) {
           io.to(hostId).emit('user-left', { role: 'viewer', socketId: socket.id });
         }
+        io.to(joinedRoom).emit('user-left-chat', userInfo);
       }
       
       // Clean up room if it's completely empty

@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import { SOCKET_CONFIG } from './config';
 import { useAuth } from './context/AuthContext';
 import Hls from 'hls.js';
+import Chat from './components/Chat';
 
 // HLS video URL
 const VIDEO_URL = 'https://stream-sync-video.s3.ap-south-1.amazonaws.com/hls/1751191482472-49b0d462-15e3-4c4a-b7af-4f6fc801aa4f/master.m3u8';
@@ -115,7 +116,14 @@ export default function Host() {
         });
       }
     });
-    socket.emit('join', { roomId, role: 'host' });
+    socket.emit('join', { 
+      roomId, 
+      role: 'host',
+      userInfo: {
+        id: user?.id,
+        username: user?.username
+      }
+    });
 
     // Add navigation warning
     const handleBeforeUnload = (e) => {
@@ -230,33 +238,41 @@ export default function Host() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
-        <div className="mb-2 text-gray-700">Room ID: <span className="font-mono">{roomId}</span></div>
-        <div className="mb-2 text-gray-700">Share this link with viewers:</div>
-        <div className="mb-4 font-mono text-blue-700 bg-blue-100 px-2 py-1 rounded break-all select-all">{shareUrl}</div>
-        <div className="mb-4 text-gray-700">Your Socket ID: <span className="font-mono">{socketId}</span></div>
-        {joinStatus && (
-          <div className={`mb-4 px-4 py-2 rounded ${joinStatus.startsWith('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{joinStatus}</div>
-        )}
-        <div className="mb-4 w-full max-w-2xl">
-          <div className="font-semibold mb-1">Viewers in Room:</div>
-          {viewers.length === 0 ? (
-            <div className="text-gray-500">No viewers have joined yet.</div>
-          ) : (
-            <ul className="list-disc pl-5">
-              {viewers.map((id) => (
-                <li key={id} className="font-mono text-sm text-gray-700">{id}</li>
-              ))}
-            </ul>
+      <div className="flex-1 flex">
+        {/* Video and controls section */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+          <div className="mb-2 text-gray-700">Room ID: <span className="font-mono">{roomId}</span></div>
+          <div className="mb-2 text-gray-700">Share this link with viewers:</div>
+          <div className="mb-4 font-mono text-blue-700 bg-blue-100 px-2 py-1 rounded break-all select-all">{shareUrl}</div>
+          <div className="mb-4 text-gray-700">Your Socket ID: <span className="font-mono">{socketId}</span></div>
+          {joinStatus && (
+            <div className={`mb-4 px-4 py-2 rounded ${joinStatus.startsWith('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{joinStatus}</div>
           )}
+          <div className="mb-4 w-full max-w-2xl">
+            <div className="font-semibold mb-1">Viewers in Room:</div>
+            {viewers.length === 0 ? (
+              <div className="text-gray-500">No viewers have joined yet.</div>
+            ) : (
+              <ul className="list-disc pl-5">
+                {viewers.map((id) => (
+                  <li key={id} className="font-mono text-sm text-gray-700">{id}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          
+          {/* HLS Video Player */}
+          <video
+            ref={videoRef}
+            controls
+            className="w-full max-w-2xl rounded shadow"
+          />
         </div>
-        
-        {/* HLS Video Player */}
-        <video
-          ref={videoRef}
-          controls
-          className="w-full max-w-2xl rounded shadow"
-        />
+
+        {/* Chat sidebar */}
+        <div className="w-80 h-full">
+          <Chat socket={socketRef.current} roomId={roomId} />
+        </div>
       </div>
     </div>
   );

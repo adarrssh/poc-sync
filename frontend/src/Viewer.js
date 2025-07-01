@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import { SOCKET_CONFIG } from './config';
 import { useAuth } from './context/AuthContext';
 import Hls from 'hls.js';
+import Chat from './components/Chat';
 
 // HLS video URL
 const VIDEO_URL = 'https://stream-sync-video.s3.ap-south-1.amazonaws.com/hls/1751191482472-49b0d462-15e3-4c4a-b7af-4f6fc801aa4f/master.m3u8';
@@ -121,7 +122,14 @@ export default function Viewer() {
     });
     
     const roomId = getRoomId();
-    socket.emit('join', { roomId, role: 'viewer' });
+    socket.emit('join', { 
+      roomId, 
+      role: 'viewer',
+      userInfo: {
+        id: user?.id,
+        username: user?.username
+      }
+    });
     return () => socket.disconnect();
   }, [ready]);
 
@@ -241,17 +249,27 @@ export default function Viewer() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
-        {joinStatus && (
-          <div className={`mb-4 px-4 py-2 rounded ${joinStatus.startsWith('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{joinStatus}</div>
-        )}
-        
-        {/* HLS Video Player */}
-        <video
-          ref={videoRef}
-          controls={false} // Viewers don't need controls as they sync with host
-          className="w-full max-w-2xl rounded shadow"
-        />
+      <div className="flex-1 flex">
+        {/* Video section */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+          {joinStatus && (
+            <div className={`mb-4 px-4 py-2 rounded ${joinStatus.startsWith('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{joinStatus}</div>
+          )}
+          
+          {/* HLS Video Player */}
+          <video
+            ref={videoRef}
+            controls={false} // Viewers don't need controls as they sync with host
+            className="w-full max-w-2xl rounded shadow"
+          />
+        </div>
+
+        {/* Chat sidebar */}
+        <div className="w-80 h-full">
+          {ready && socketRef.current ? (
+            <Chat socket={socketRef.current} roomId={getRoomId()} />
+          ) : null}
+        </div>
       </div>
     </div>
   );
