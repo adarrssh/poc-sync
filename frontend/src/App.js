@@ -6,6 +6,7 @@ import Login from './components/Login';
 import Signup from './components/Signup';
 import Host from './Host';
 import Viewer from './Viewer';
+import VideoUpload from './components/VideoUpload';
 
 function App() {
   return (
@@ -36,7 +37,9 @@ function App() {
           
           {/* Default redirect */}
           <Route path="*" element={<Navigate to="/host" replace />} />
+          <Route path="/upload" element={<VideoUpload />} />
         </Routes>
+        
       </Router>
     </AuthProvider>
   );
