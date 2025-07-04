@@ -10,7 +10,7 @@ import Chat from './components/Chat';
 function getVideoUrl() {
   const params = new URLSearchParams(window.location.search);
   const videoUrl = params.get('video');
-  return videoUrl || 'https://stream-sync-video.s3.ap-south-1.amazonaws.com/hls/1751191482472-49b0d462-15e3-4c4a-b7af-4f6fc801aa4f/master.m3u8';
+  return videoUrl
 }
 
 function generateRoomId() {
@@ -79,6 +79,20 @@ export default function Host() {
     };
   }, [videoUrl]);
 
+  // Send video URL to all viewers when it changes
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || viewers.length === 0) return;
+
+    // Send video URL update to all viewers
+    viewers.forEach(viewerId => {
+      socket.emit('send-video-url', {
+        viewerId: viewerId,
+        videoUrl: videoUrl
+      });
+    });
+  }, [videoUrl, viewers]);
+
   useEffect(() => {
     const socket = io(SOCKET_CONFIG.url);
     socketRef.current = socket;
@@ -96,6 +110,12 @@ export default function Host() {
     socket.on('viewer-joined', (data) => {
       console.log(`Viewer joined the room! Viewer socketId: ${data.viewerId}, Room: ${data.roomId}`);
       setViewers((prev) => prev.includes(data.viewerId) ? prev : [...prev, data.viewerId]);
+      
+      // Send current video URL to the new viewer
+      socket.emit('send-video-url', {
+        viewerId: data.viewerId,
+        videoUrl: videoUrl
+      });
     });
     socket.on('viewers-list', (data) => {
       setViewers(data.viewers);

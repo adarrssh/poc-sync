@@ -6,8 +6,12 @@ import { useAuth } from './context/AuthContext';
 import Hls from 'hls.js';
 import Chat from './components/Chat';
 
-// HLS video URL
-const VIDEO_URL = 'https://stream-sync-video.s3.ap-south-1.amazonaws.com/hls/1751191482472-49b0d462-15e3-4c4a-b7af-4f6fc801aa4f/master.m3u8';
+// Get video URL from query parameters or use default
+function getVideoUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const videoUrl = params.get('video');
+  return videoUrl;
+}
 
 function getRoomId() {
   return new URLSearchParams(window.location.search).get('roomId') || 'default';
@@ -21,6 +25,7 @@ export default function Viewer() {
   const hlsRef = useRef();
   const [joinStatus, setJoinStatus] = useState('');
   const [ready, setReady] = useState(false);
+  const [videoUrl, setVideoUrl] = useState(getVideoUrl());
   
   // Authentication
   const { user, logout } = useAuth();
@@ -41,7 +46,7 @@ export default function Viewer() {
     if (Hls.isSupported()) {
       const hls = new Hls();
       hlsRef.current = hls;
-      hls.loadSource(VIDEO_URL);
+      hls.loadSource(videoUrl);
       hls.attachMedia(video);
       
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -53,7 +58,7 @@ export default function Viewer() {
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // For Safari which has native HLS support
-      video.src = VIDEO_URL;
+      video.src = videoUrl;
     }
 
     return () => {
@@ -61,7 +66,7 @@ export default function Viewer() {
         hlsRef.current.destroy();
       }
     };
-  }, [ready]);
+  }, [ready, videoUrl]);
 
   useEffect(() => {
     if (!ready) return;
@@ -80,6 +85,12 @@ export default function Viewer() {
       if (data.role === 'host') {
         setJoinStatus('Host has left the room. The session has ended.');
       }
+    });
+    
+    // Handle video URL updates from host
+    socket.on('video-url-update', (data) => {
+      console.log('Received video URL update from host:', data.videoUrl);
+      setVideoUrl(data.videoUrl);
     });
     
     // Handle initial sync when joining a room with active video
@@ -205,6 +216,11 @@ export default function Viewer() {
               <div className="text-sm text-gray-600">
                 Welcome, <span className="font-semibold">{user?.username}</span>
               </div>
+              {videoUrl && videoUrl !== getVideoUrl() && (
+                <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                  Watching: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
+                </div>
+              )}
             </div>
             <button
               onClick={handleLogout}

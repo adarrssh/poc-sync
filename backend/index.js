@@ -217,6 +217,26 @@ io.on('connection', (socket) => {
   });
 
   /**
+   * SEND VIDEO URL HANDLER
+   * 
+   * Handles requests from host to send current video URL to a specific viewer
+   * This is used when a new viewer joins and needs to know which video to load
+   * 
+   * Flow:
+   * 1. Host receives 'viewer-joined' event for new viewer
+   * 2. Host responds with current video URL via this event
+   * 3. Server forwards the URL to the specific viewer
+   */
+  socket.on('send-video-url', (data) => {
+    // Only host can send video URL (security check)
+    if (isHost && joinedRoom && data.viewerId && data.videoUrl) {
+      // Send to specific viewer by their socket ID
+      io.to(data.viewerId).emit('video-url-update', { videoUrl: data.videoUrl });
+      console.log(`[VIDEO URL SENT] To viewer ${data.viewerId}: ${data.videoUrl}`);
+    }
+  });
+
+  /**
    * CHAT MESSAGE HANDLER
    * 
    * Handles chat messages from users in a room
