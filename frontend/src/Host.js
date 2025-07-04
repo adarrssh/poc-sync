@@ -79,19 +79,7 @@ export default function Host() {
     };
   }, [videoUrl]);
 
-  // Send video URL to all viewers when it changes
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket || viewers.length === 0) return;
 
-    // Send video URL update to all viewers
-    viewers.forEach(viewerId => {
-      socket.emit('send-video-url', {
-        viewerId: viewerId,
-        videoUrl: videoUrl
-      });
-    });
-  }, [videoUrl, viewers]);
 
   useEffect(() => {
     const socket = io(SOCKET_CONFIG.url);
@@ -110,12 +98,6 @@ export default function Host() {
     socket.on('viewer-joined', (data) => {
       console.log(`Viewer joined the room! Viewer socketId: ${data.viewerId}, Room: ${data.roomId}`);
       setViewers((prev) => prev.includes(data.viewerId) ? prev : [...prev, data.viewerId]);
-      
-      // Send current video URL to the new viewer
-      socket.emit('send-video-url', {
-        viewerId: data.viewerId,
-        videoUrl: videoUrl
-      });
     });
     socket.on('viewers-list', (data) => {
       setViewers(data.viewers);
@@ -147,7 +129,8 @@ export default function Host() {
       userInfo: {
         id: user?.id,
         username: user?.username
-      }
+      },
+      videoUrl: videoUrl
     });
 
     // Add navigation warning

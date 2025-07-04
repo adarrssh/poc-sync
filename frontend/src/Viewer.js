@@ -25,7 +25,9 @@ export default function Viewer() {
   const hlsRef = useRef();
   const [joinStatus, setJoinStatus] = useState('');
   const [ready, setReady] = useState(false);
-  const [videoUrl, setVideoUrl] = useState(getVideoUrl());
+  const [videoUrl, setVideoUrl] = useState(null);
+
+  console.log('videoUrl', videoUrl);
   
   // Authentication
   const { user, logout } = useAuth();
@@ -38,10 +40,12 @@ export default function Viewer() {
 
   // Initialize HLS player
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !videoUrl) return;
     
     const video = videoRef.current;
     if (!video) return;
+
+    console.log('Initializing HLS player with URL:', videoUrl);
 
     if (Hls.isSupported()) {
       const hls = new Hls();
@@ -87,17 +91,17 @@ export default function Viewer() {
       }
     });
     
-    // Handle video URL updates from host
-    socket.on('video-url-update', (data) => {
-      console.log('Received video URL update from host:', data.videoUrl);
-      setVideoUrl(data.videoUrl);
-    });
-    
     // Handle initial sync when joining a room with active video
-    socket.on('initial-sync', (videoState) => {
-      console.log('Received initial sync:', videoState);
+    socket.on('initial-sync', (syncData) => {
+      console.log('Received initial sync:', syncData);
       const video = videoRef.current;
       if (!video) return;
+      
+      // Update video URL if provided
+      if (syncData.videoUrl) {
+        console.log('Received video URL in initial sync:', syncData.videoUrl);
+        setVideoUrl(syncData.videoUrl);
+      }
       
       // Mark that we've received initial sync
       hasReceivedInitialSync.current = true;
@@ -107,22 +111,22 @@ export default function Viewer() {
           if (video.readyState < 1) {
             // Video not ready yet, store the sync info
             pendingSeek.current = { 
-              time: videoState.currentTime, 
-              play: videoState.isPlaying 
+              time: syncData.currentTime, 
+              play: syncData.isPlaying 
             };
             return;
           }
           
           // Set the current time
-          video.currentTime = videoState.currentTime;
+          video.currentTime = syncData.currentTime;
           
           // If video was playing, start playing
-          if (videoState.isPlaying) {
+          if (syncData.isPlaying) {
             await video.play();
-            console.log(`Auto-resumed video at ${videoState.currentTime}s`);
+            console.log(`Auto-resumed video at ${syncData.currentTime}s`);
           } else {
             video.pause();
-            console.log(`Synced to paused video at ${videoState.currentTime}s`);
+            console.log(`Synced to paused video at ${syncData.currentTime}s`);
           }
         } catch (err) {
           console.warn('Could not auto-resume video:', err);
@@ -216,7 +220,7 @@ export default function Viewer() {
               <div className="text-sm text-gray-600">
                 Welcome, <span className="font-semibold">{user?.username}</span>
               </div>
-              {videoUrl && videoUrl !== getVideoUrl() && (
+              {videoUrl && (
                 <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
                   Watching: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
                 </div>
