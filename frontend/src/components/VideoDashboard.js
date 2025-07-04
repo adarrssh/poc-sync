@@ -35,6 +35,9 @@ const VideoDashboard = () => {
       
       const response = await api.get(`/api/upload/videos?${params}`);
       
+      // Debug logging
+      console.log('Fetched videos:', response.data.videos);
+      
       setVideos(response.data.videos);
       setPagination(response.data.pagination);
     } catch (err) {
@@ -116,6 +119,15 @@ const VideoDashboard = () => {
   const handleConvertToHLS = async (videoId, s3Key) => {
     try {
       setError(null);
+      
+      // Debug logging
+      console.log('Converting video:', { videoId, s3Key });
+      
+      if (!s3Key) {
+        setError('S3 key is missing for this video. Please try refreshing the page.');
+        return;
+      }
+      
       const response = await api.post(`/api/upload/convert-to-hls/${videoId}`, {
         s3Key: s3Key
       });
@@ -126,6 +138,12 @@ const VideoDashboard = () => {
       alert('Video encoding started successfully!');
     } catch (err) {
       console.error('Error starting conversion:', err);
+      console.error('Error details:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        videoId,
+        s3Key
+      });
       setError(err.response?.data?.message || 'Failed to start video conversion');
     }
   };
@@ -306,7 +324,11 @@ const VideoDashboard = () => {
                   <div className="mt-4 flex flex-wrap gap-2">
                     {video.status === 'uploaded' && (
                       <button
-                        onClick={() => handleConvertToHLS(video.id, video.s3Key)}
+                        onClick={() => {
+                          // Try to get s3Key from video data or construct from URL
+                          const s3Key = video.s3Key || (video.url ? video.url.split('.com/')[1] : null);
+                          handleConvertToHLS(video.id, s3Key);
+                        }}
                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         🔄 Convert to HLS
