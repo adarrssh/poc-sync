@@ -7,6 +7,7 @@ import Signup from './components/Signup';
 import Host from './Host';
 import Viewer from './Viewer';
 import VideoUpload from './components/VideoUpload';
+import VideoDashboard from './components/VideoDashboard';
 
 function App() {
   return (
@@ -34,10 +35,18 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/videos" 
+            element={
+              <ProtectedRoute>
+                <VideoDashboard />
+              </ProtectedRoute>
+            } 
+          />
           
           {/* Default redirect */}
           <Route path="/upload" element={<VideoUpload />} />
-          <Route path="*" element={<Navigate to="/host" replace />} />
+          <Route path="*" element={<Navigate to="/videos" replace />} />
         </Routes>
         
       </Router>
