@@ -36,8 +36,8 @@ function App() {
           />
           
           {/* Default redirect */}
-          <Route path="*" element={<Navigate to="/host" replace />} />
           <Route path="/upload" element={<VideoUpload />} />
+          <Route path="*" element={<Navigate to="/host" replace />} />
         </Routes>
         
       </Router>
