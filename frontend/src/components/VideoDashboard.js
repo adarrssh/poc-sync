@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../context/AuthContext';
 import Navigation from './Navigation';
+import { useNavigate } from 'react-router-dom';
 
 const VideoDashboard = () => {
   const [videos, setVideos] = useState([]);
@@ -17,6 +18,7 @@ const VideoDashboard = () => {
   });
   const [statusFilter, setStatusFilter] = useState('');
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Fetch videos from API
   const fetchVideos = async (page = 1, status = '') => {
@@ -155,8 +157,9 @@ const VideoDashboard = () => {
       const response = await api.get(`/api/upload/streaming/${videoId}`);
       
       if (response.data.streamingUrls) {
-        // Open streaming URL in new tab
-        window.open(response.data.streamingUrls.master, '_blank');
+        // Navigate to host page with the streaming URL
+        const streamingUrl = response.data.streamingUrls.master;
+        navigate(`/host?video=${encodeURIComponent(streamingUrl)}`);
       } else {
         alert('Video is still being processed. Please wait for encoding to complete.');
       }

@@ -6,8 +6,12 @@ import { useAuth } from './context/AuthContext';
 import Hls from 'hls.js';
 import Chat from './components/Chat';
 
-// HLS video URL
-const VIDEO_URL = 'https://stream-sync-video.s3.ap-south-1.amazonaws.com/hls/1751191482472-49b0d462-15e3-4c4a-b7af-4f6fc801aa4f/master.m3u8';
+// Get video URL from query parameters or use default
+function getVideoUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const videoUrl = params.get('video');
+  return videoUrl || 'https://stream-sync-video.s3.ap-south-1.amazonaws.com/hls/1751191482472-49b0d462-15e3-4c4a-b7af-4f6fc801aa4f/master.m3u8';
+}
 
 function generateRoomId() {
   // Simple random string generator
@@ -34,6 +38,7 @@ export default function Host() {
   const roomId = getOrCreateRoomId();
   const [joinStatus, setJoinStatus] = useState('');
   const [viewers, setViewers] = useState([]);
+  const [videoUrl, setVideoUrl] = useState(getVideoUrl());
   
   // Authentication
   const { user, logout } = useAuth();
@@ -52,7 +57,7 @@ export default function Host() {
     if (Hls.isSupported()) {
       const hls = new Hls();
       hlsRef.current = hls;
-      hls.loadSource(VIDEO_URL);
+      hls.loadSource(videoUrl);
       hls.attachMedia(video);
       
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -64,7 +69,7 @@ export default function Host() {
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // For Safari which has native HLS support
-      video.src = VIDEO_URL;
+      video.src = videoUrl;
     }
 
     return () => {
@@ -72,7 +77,7 @@ export default function Host() {
         hlsRef.current.destroy();
       }
     };
-  }, []);
+  }, [videoUrl]);
 
   useEffect(() => {
     const socket = io(SOCKET_CONFIG.url);
@@ -227,6 +232,11 @@ export default function Host() {
             <div className="text-sm text-gray-600">
               Welcome, <span className="font-semibold">{user?.username}</span>
             </div>
+            {videoUrl && videoUrl !== getVideoUrl() && (
+              <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                Streaming: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
+              </div>
+            )}
           </div>
           <button
             onClick={handleLogout}
