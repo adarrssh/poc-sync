@@ -15,7 +15,7 @@ const ProtectedLayout = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      <main className="pt-16">
+      <main className="">
         {children}
       </main>
     </div>

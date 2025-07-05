@@ -226,56 +226,66 @@ export default function Host() {
   const shareUrl = `${window.location.origin}/viewer?roomId=${roomId}`;
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      {/* Page Header */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900">Host View</h1>
-          {videoUrl && videoUrl !== getVideoUrl() && (
-            <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-              Streaming: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 flex">
-        {/* Video and controls section */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
-          <div className="mb-2 text-gray-700">Room ID: <span className="font-mono">{roomId}</span></div>
-          <div className="mb-2 text-gray-700">Share this link with viewers:</div>
-          <div className="mb-4 font-mono text-blue-700 bg-blue-100 px-2 py-1 rounded break-all select-all">{shareUrl}</div>
-          <div className="mb-4 text-gray-700">Your Socket ID: <span className="font-mono">{socketId}</span></div>
-          {joinStatus && (
-            <div className={`mb-4 px-4 py-2 rounded ${joinStatus.startsWith('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{joinStatus}</div>
-          )}
-          <div className="mb-4 w-full max-w-2xl">
-            <div className="font-semibold mb-1">Viewers in Room:</div>
-            {viewers.length === 0 ? (
-              <div className="text-gray-500">No viewers have joined yet.</div>
-            ) : (
-              <ul className="list-disc pl-5">
-                {viewers.map((id) => (
-                  <li key={id} className="font-mono text-sm text-gray-700">{id}</li>
-                ))}
-              </ul>
+    <div className="h-full w-full flex flex-col items-center">
+      <div className="w-full bg-white shadow-sm border-b px-6 py-4 flex justify-center">
+        {/* Page Header with Back button */}
+        <div className="w-full max-w-7xl flex flex-row items-center justify-between lg:pl-8 lg:pr-10 ">
+          <button
+            onClick={() => navigate('/videos')}
+            className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors h-10"
+            style={{minHeight: '2.5rem'}}
+          >
+            ← Back to My Videos
+          </button>
+          <div className="flex items-center gap-4 h-10" style={{minHeight: '2.5rem'}}>
+            <h1 className="text-2xl font-bold text-gray-900">Host View</h1>
+            {videoUrl && videoUrl !== getVideoUrl() && (
+              <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                Streaming: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
+              </div>
             )}
           </div>
-          
-          {/* HLS Video Player */}
-          <video
-            ref={videoRef}
-            controls
-            className="w-full max-w-2xl rounded shadow"
-          />
-        </div>
-
-        {/* Chat sidebar */}
-        <div className="w-80 h-full">
-          <Chat socket={socketRef.current} roomId={roomId} />
         </div>
       </div>
+
+
+        {/* Main content */}
+        <div className="flex-1 flex">
+          {/* Video and controls section */}
+          <div className="flex-1 flex flex-col items-center justify-center px-6 py-2">
+            <div className="mb-2 text-gray-700">Room ID: <span className="font-mono">{roomId}</span></div>
+            <div className="mb-2 text-gray-700">Share this link with viewers:</div>
+            <div className="mb-4 font-mono text-blue-700 bg-blue-100 px-2 py-1 rounded break-all select-all">{shareUrl}</div>
+            <div className="mb-4 text-gray-700">Your Socket ID: <span className="font-mono">{socketId}</span></div>
+            {joinStatus && (
+              <div className={`mb-4 px-4 py-2 rounded ${joinStatus.startsWith('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{joinStatus}</div>
+            )}
+            <div className="mb-4 w-full max-w-2xl">
+              <div className="font-semibold mb-1">Viewers in Room:</div>
+              {viewers.length === 0 ? (
+                <div className="text-gray-500">No viewers have joined yet.</div>
+              ) : (
+                <ul className="list-disc pl-5">
+                  {viewers.map((id) => (
+                    <li key={id} className="font-mono text-sm text-gray-700">{id}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            
+            {/* HLS Video Player */}
+            <video
+              ref={videoRef}
+              controls
+              className="w-full max-w-2xl rounded shadow"
+            />
+          </div>
+
+          {/* Chat sidebar */}
+          <div className="w-80 h-full">
+            <Chat socket={socketRef.current} roomId={roomId} />
+          </div>
+        </div>
     </div>
   );
 } 

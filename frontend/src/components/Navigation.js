@@ -49,8 +49,6 @@ const Navigation = () => {
   const navigationItems = [
     { name: 'My Videos', path: '/videos', icon: '📹' },
     { name: 'Upload', path: '/upload', icon: '📤' },
-    { name: 'Host', path: '/host', icon: '🎥' },
-    { name: 'Viewer', path: '/viewer', icon: '👁️' },
   ];
 
   return (

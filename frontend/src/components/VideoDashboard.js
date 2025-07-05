@@ -2,11 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import Toast from './Toast';
+
+const getVideoTitle = (video) =>
+
+  video.originalName ||
+  'Untitled Video';
+
+const getVideoDate = (video) => {
+  const dateStr = video.createdAt || video.uploadedAt || video.date;
+  if (!dateStr) return 'Unknown';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return 'Unknown';
+  return date.toLocaleString();
+};
+
+const getHlsUrl = (video) => video.hlsUrl || video.hls_url || video.url;
 
 const VideoDashboard = () => {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -24,132 +41,55 @@ const VideoDashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      
       const params = new URLSearchParams({
         page: page.toString(),
         limit: pagination.limit.toString()
       });
-      
       if (status) {
         params.append('status', status);
       }
-      
       const response = await api.get(`/api/upload/videos?${params}`);
-      
-      // Debug logging
-      console.log('Fetched videos:', response.data.videos);
-      
       setVideos(response.data.videos);
       setPagination(response.data.pagination);
     } catch (err) {
-      console.error('Error fetching videos:', err);
       setError(err.response?.data?.message || 'Failed to fetch videos');
     } finally {
       setLoading(false);
     }
   };
 
-  // Load videos on component mount and when filters change
   useEffect(() => {
     fetchVideos(1, statusFilter);
+    // eslint-disable-next-line
   }, [statusFilter]);
 
-  // Handle page change
   const handlePageChange = (newPage) => {
     fetchVideos(newPage, statusFilter);
   };
 
-  // Handle status filter change
   const handleStatusFilterChange = (newStatus) => {
     setStatusFilter(newStatus);
   };
 
-  // Format file size
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  // Format date
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  // Get status badge color
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'processing':
-        return 'bg-blue-100 text-blue-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      case 'uploaded':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Get status icon
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed':
-        return '✅';
-      case 'processing':
-        return '🔄';
-      case 'failed':
-        return '❌';
-      case 'uploaded':
-        return '📤';
-      default:
-        return '📄';
-    }
-  };
-
-  // Handle video conversion
-  const handleConvertToHLS = async (videoId, s3Key) => {
+  // Real API call for Convert to HLS, with toast feedback
+  const handleConvertToHLS = async (video) => {
     try {
       setError(null);
-      
-      // Debug logging
-      console.log('Converting video:', { videoId, s3Key });
-      
+      const s3Key = video.s3Key || (getHlsUrl(video) ? getHlsUrl(video).split('.com/')[1] : null);
       if (!s3Key) {
-        setError('S3 key is missing for this video. Please try refreshing the page.');
+        setToast({ message: 'S3 key is missing for this video. Please try refreshing the page.', type: 'error' });
         return;
       }
-      
-      const response = await api.post(`/api/upload/convert-to-hls/${videoId}`, {
+      const response = await api.post(`/api/upload/convert-to-hls/${video._id || video.id}`, {
         s3Key: s3Key
       });
-      
-      // Refresh videos to show updated status
       fetchVideos(pagination.page, statusFilter);
-      
-      alert('Video encoding started successfully!');
+      setToast({ message: 'Video encoding started successfully!', type: 'success' });
     } catch (err) {
-      console.error('Error starting conversion:', err);
-      console.error('Error details:', {
-        status: err.response?.status,
-        data: err.response?.data,
-        videoId,
-        s3Key
-      });
-      setError(err.response?.data?.message || 'Failed to start video conversion');
+      setToast({ message: err.response?.data?.message || 'Failed to start video conversion', type: 'error' });
     }
   };
 
-  // Handle streaming
   const handleStreaming = async (videoId) => {
     try {
       setError(null);
@@ -168,9 +108,10 @@ const VideoDashboard = () => {
     }
   };
 
+  // UI starts here
   if (loading && videos.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your videos...</p>
@@ -180,230 +121,162 @@ const VideoDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="py-8">
+    <div className="min-h-screen bg-white">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+      <div className="py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Videos</h1>
-          <p className="mt-2 text-gray-600">
-            Welcome back, {user?.username}! Here are your uploaded videos.
-          </p>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <span className="text-red-400">❌</span>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
-                <div className="mt-2 text-sm text-red-700">{error}</div>
-              </div>
+          {/* Header */}
+          <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-extrabold text-gray-900 mb-1">My Videos</h1>
+              <p className="text-gray-500 text-base">Welcome back, <span className="font-semibold text-blue-700">{user?.username}</span>! Here are your uploaded videos.</p>
             </div>
-          </div>
-        )}
-
-        {/* Filters */}
-        <div className="mb-6 flex flex-wrap gap-4 items-center">
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">Status:</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => handleStatusFilterChange(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Videos</option>
-              <option value="uploaded">Uploaded</option>
-              <option value="processing">Processing</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-            </select>
-          </div>
-          
-          <div className="text-sm text-gray-600">
-            {pagination.total > 0 && (
-              <span>Showing {videos.length} of {pagination.total} videos</span>
-            )}
-          </div>
-        </div>
-
-        {/* Videos Grid */}
-        {videos.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">📹</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No videos found</h3>
-            <p className="text-gray-600">
-              {statusFilter 
-                ? `No videos with status "${statusFilter}" found.`
-                : "You haven't uploaded any videos yet."
-              }
-            </p>
-            {!statusFilter && (
-              <a
-                href="/upload"
-                className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-              >
-                Upload Your First Video
-              </a>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {videos.map((video) => (
-              <div
-                key={video.id}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200"
-              >
-                {/* Video Header */}
-                <div className="p-4 border-b border-gray-200">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-medium text-gray-900 truncate">
-                        {video.originalName}
-                      </h3>
-                    </div>
-                    <div className="ml-2 flex-shrink-0">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(video.status)}`}>
-                        {getStatusIcon(video.status)} {video.status}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Video Details */}
-                <div className="p-4">
-                  <div className="space-y-3">
-                    {/* Progress Bar */}
-                    {video.status === 'processing' && (
-                      <div>
-                        <div className="flex justify-between text-sm text-gray-600 mb-1">
-                          <span>Encoding Progress</span>
-                          <span>{video.encodingProgress}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${video.encodingProgress}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Upload Date */}
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">Uploaded:</span> {formatDate(video.uploadedAt)}
-                    </div>
-
-                    {/* Encoding Times */}
-                    {video.encodingStartedAt && (
-                      <div className="text-sm text-gray-600">
-                        <span className="font-medium">Encoding Started:</span> {formatDate(video.encodingStartedAt)}
-                      </div>
-                    )}
-                    
-                    {video.encodingCompletedAt && (
-                      <div className="text-sm text-gray-600">
-                        <span className="font-medium">Completed:</span> {formatDate(video.encodingCompletedAt)}
-                      </div>
-                    )}
-
-                    {/* Error Message */}
-                    {video.error && (
-                      <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                        <span className="font-medium">Error:</span> {video.error}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {video.status === 'uploaded' && (
-                      <button
-                        onClick={() => {
-                          // Try to get s3Key from video data or construct from URL
-                          const s3Key = video.s3Key || (video.url ? video.url.split('.com/')[1] : null);
-                          handleConvertToHLS(video.id, s3Key);
-                        }}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        🔄 Convert to HLS
-                      </button>
-                    )}
-                    
-                    {video.status === 'completed' && video.streamingUrls && (
-                      <button
-                        onClick={() => handleStreaming(video.id)}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                      >
-                        ▶️ Stream Video
-                      </button>
-                    )}
-                    
-                    {video.status === 'processing' && (
-                      <button
-                        onClick={() => fetchVideos(pagination.page, statusFilter)}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        🔄 Refresh Status
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Pagination */}
-        {pagination.pages > 1 && (
-          <div className="mt-8 flex items-center justify-between">
-            <div className="flex-1 flex justify-between sm:hidden">
+            {/* Filters */}
+            <div className="flex gap-2 mt-4 sm:mt-0">
               <button
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={!pagination.hasPrev}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleStatusFilterChange('')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors duration-150 ${statusFilter === '' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white border-transparent' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50'}`}
               >
-                Previous
+                All
               </button>
               <button
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={!pagination.hasNext}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleStatusFilterChange('processing')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors duration-150 ${statusFilter === 'processing' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white border-transparent' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50'}`}
               >
-                Next
+                Processing
+              </button>
+              <button
+                onClick={() => handleStatusFilterChange('completed')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors duration-150 ${statusFilter === 'completed' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white border-transparent' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50'}`}
+              >
+                Completed
               </button>
             </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing page <span className="font-medium">{pagination.page}</span> of{' '}
-                  <span className="font-medium">{pagination.pages}</span>
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                  <button
-                    onClick={() => handlePageChange(pagination.page - 1)}
-                    disabled={!pagination.hasPrev}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ← Previous
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(pagination.page + 1)}
-                    disabled={!pagination.hasNext}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next →
-                  </button>
-                </nav>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <span className="text-red-400">❌</span>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Error</h3>
+                  <div className="mt-2 text-sm text-red-700">{error}</div>
+                </div>
               </div>
             </div>
+          )}
+
+          {/* Video Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {videos.length === 0 ? (
+              <div className="col-span-full text-center text-gray-500 py-16">
+                <div className="text-5xl mb-2">📭</div>
+                <p className="text-lg font-semibold">No videos found</p>
+                <p className="text-sm">Upload a video to get started!</p>
+              </div>
+            ) : (
+              videos.map((video) => {
+                const hlsUrl = getHlsUrl(video);
+                const isFailed = video.status === 'failed';
+                return (
+                  <div
+                    key={video._id || video.id}
+                    className={`rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 p-5 flex flex-col border ${isFailed ? 'bg-red-50 border-red-200' : 'bg-white border-transparent'}`}
+                  >
+                    <div className="flex-1">
+                      <h2 className="text-lg font-bold text-gray-900 truncate mb-1">{getVideoTitle(video)}</h2>
+                      {/* <p className="text-sm text-gray-500 truncate mb-2">{video.originalName || video.originalname || video.filename || ''}</p> */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${video.status === 'completed' ? 'bg-green-100 text-green-700' : video.status === 'processing' ? 'bg-yellow-100 text-yellow-800' : video.status === 'failed' ? 'bg-red-200 text-red-800' : 'bg-gray-100 text-gray-600'}`}>{video.status || 'unknown'}</span>
+                      </div>
+                      <div className="text-xs text-gray-400 mb-2">Uploaded: {getVideoDate(video)}</div>
+                      {/* Progress bar for processing videos */}
+                      {video.status === 'processing' && (
+                        <div className="mb-2">
+                          {typeof video.encodingProgress === 'number' ? (
+                            <>
+                              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                <span>Encoding Progress</span>
+                                <span>{video.encodingProgress}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${video.encodingProgress}%` }}
+                                ></div>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="block text-xs text-gray-500">Processing...</span>
+                          )}
+                        </div>
+                      )}
+                      {/* Error message for failed videos */}
+                      {isFailed && video.error && (
+                        <div className="mt-2 p-2 bg-red-100 text-red-700 rounded text-xs">
+                          <span className="font-semibold">Error:</span> {video.error}
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      {/* Convert to HLS button if not processing or completed */}
+                      {video.status !== 'processing' && video.status !== 'completed' && !isFailed && (
+                        <button
+                          onClick={() => handleConvertToHLS(video)}
+                          className="flex-1 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow hover:from-blue-700 hover:to-purple-700 transition-colors"
+                        >
+                          Convert to HLS
+                        </button>
+                      )}
+                      {/* Host button if completed and hlsUrl exists */}
+                      {video.status === 'completed' && hlsUrl && (
+                        <button
+                          onClick={() => handleStreaming(video.id)}
+                          className="flex-1 px-4 py-2 rounded-lg border border-blue-600 text-blue-700 font-semibold bg-white hover:bg-blue-50 transition-colors"
+                        >
+                          Host
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
-        )}
+
+          {/* Pagination */}
+          {pagination.pages > 1 && (
+            <div className="flex justify-center mt-10">
+              <nav className="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={!pagination.hasPrev}
+                  className="relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ← Previous
+                </button>
+                <span className="relative inline-flex items-center px-4 py-2 border-t border-b border-gray-300 bg-white text-sm font-medium text-gray-700">
+                  Page {pagination.page} of {pagination.pages}
+                </span>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={!pagination.hasNext}
+                  className="relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
+              </nav>
+            </div>
+          )}
         </div>
       </div>
     </div>
