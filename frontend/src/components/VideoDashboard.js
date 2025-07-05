@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../context/AuthContext';
-import Navigation from './Navigation';
 import { useNavigate } from 'react-router-dom';
 
 const VideoDashboard = () => {
@@ -182,7 +181,6 @@ const VideoDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
       <div className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -266,9 +264,6 @@ const VideoDashboard = () => {
                       <h3 className="text-lg font-medium text-gray-900 truncate">
                         {video.originalName}
                       </h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {formatFileSize(video.size)}
-                      </p>
                     </div>
                     <div className="ml-2 flex-shrink-0">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(video.status)}`}>

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../context/AuthContext';
-import Navigation from './Navigation';
 import { useNavigate } from 'react-router-dom';
 
 const VideoUpload = () => {
@@ -48,7 +47,6 @@ const VideoUpload = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
       <div className="py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-lg shadow-md p-6">

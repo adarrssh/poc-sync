@@ -226,27 +226,16 @@ export default function Host() {
   const shareUrl = `${window.location.origin}/viewer?roomId=${roomId}`;
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
-      {/* Header with user info and logout */}
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      {/* Page Header */}
       <div className="bg-white shadow-sm border-b px-6 py-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold text-gray-900">Host View</h1>
-            <div className="text-sm text-gray-600">
-              Welcome, <span className="font-semibold">{user?.username}</span>
+        <div className="flex items-center space-x-4">
+          <h1 className="text-2xl font-bold text-gray-900">Host View</h1>
+          {videoUrl && videoUrl !== getVideoUrl() && (
+            <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+              Streaming: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
             </div>
-            {videoUrl && videoUrl !== getVideoUrl() && (
-              <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                Streaming: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
-              </div>
-            )}
-          </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-          >
-            Logout
-          </button>
+          )}
         </div>
       </div>
 

@@ -1,10 +1,14 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Navigation = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
 
   const isActive = (path) => {
     return location.pathname === path;
@@ -12,83 +16,135 @@ const Navigation = () => {
 
   const handleLogout = async () => {
     await logout();
+    navigate('/login');
   };
 
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const toggleUserMenu = () => {
+    setIsUserMenuOpen(!isUserMenuOpen);
+  };
+
+  const closeMenus = () => {
+    setIsMobileMenuOpen(false);
+    setIsUserMenuOpen(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const navigationItems = [
+    { name: 'My Videos', path: '/videos', icon: '📹' },
+    { name: 'Upload', path: '/upload', icon: '📤' },
+    { name: 'Host', path: '/host', icon: '🎥' },
+    { name: 'Viewer', path: '/viewer', icon: '👁️' },
+  ];
+
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
+    <nav className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          <div className="flex">
+          {/* Logo and Brand */}
+          <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">Video Platform</h1>
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                  <span className="text-blue-600 font-bold text-lg">
+                    s
+                  </span>
+                </div>
+                <h1 className="text-xl font-bold text-white">Streamify</h1>
+              </div>
             </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              <Link
-                to="/videos"
-                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                  isActive('/videos')
-                    ? 'border-blue-500 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                }`}
-              >
-                📹 My Videos
-              </Link>
-              <Link
-                to="/upload"
-                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                  isActive('/upload')
-                    ? 'border-blue-500 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                }`}
-              >
-                📤 Upload Video
-              </Link>
-              <Link
-                to="/host"
-                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                  isActive('/host')
-                    ? 'border-blue-500 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                }`}
-              >
-                🎥 Host
-              </Link>
-              <Link
-                to="/viewer"
-                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                  isActive('/viewer')
-                    ? 'border-blue-500 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                }`}
-              >
-                👁️ Viewer
-              </Link>
+            
+            {/* Desktop Navigation */}
+            <div className="hidden md:ml-10 md:flex md:space-x-8">
+              {navigationItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={closeMenus}
+                  className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    isActive(item.path)
+                      ? 'bg-white bg-opacity-20 text-white border border-white border-opacity-30'
+                      : 'text-white hover:bg-white hover:bg-opacity-10 hover:text-white'
+                  }`}
+                >
+                  <span className="mr-2">{item.icon}</span>
+                  {item.name}
+                </Link>
+              ))}
             </div>
           </div>
-          
-          <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                Welcome, {user?.username}!
-              </span>
+
+          {/* User Menu - Desktop */}
+          <div className="hidden md:flex md:items-center md:space-x-4">
+            <div className="relative" ref={userMenuRef}>
               <button
-                onClick={handleLogout}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                onClick={toggleUserMenu}
+                className="flex items-center space-x-3 text-white hover:bg-white hover:bg-opacity-10 rounded-lg px-3 py-2 transition-colors duration-200"
               >
-                🚪 Logout
+                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <span className="text-white font-medium text-sm">
+                    {user?.username?.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <span className="text-sm font-medium">{user?.username}</span>
+                <svg
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    isUserMenuOpen ? 'rotate-180' : ''
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
+
+              {/* User Dropdown */}
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                  <div className="px-4 py-2 border-b border-gray-200">
+                    <p className="text-sm font-medium text-gray-900">{user?.username}</p>
+                    <p className="text-sm text-gray-500">{user?.email}</p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                  >
+                    <span className="mr-2">🚪</span>
+                    Sign out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Mobile menu button */}
-          <div className="flex items-center sm:hidden">
+          <div className="flex items-center md:hidden">
             <button
-              type="button"
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              onClick={toggleMobileMenu}
+              className="inline-flex items-center justify-center p-2 rounded-md text-white hover:bg-white hover:bg-opacity-10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
             >
               <span className="sr-only">Open main menu</span>
               <svg
-                className="block h-6 w-6"
+                className={`block h-6 w-6 transition-transform duration-200 ${
+                  isMobileMenuOpen ? 'rotate-90' : ''
+                }`}
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -107,73 +163,53 @@ const Navigation = () => {
       </div>
 
       {/* Mobile menu */}
-      <div className="sm:hidden">
-        <div className="pt-2 pb-3 space-y-1">
-          <Link
-            to="/videos"
-            className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
-              isActive('/videos')
-                ? 'bg-blue-50 border-blue-500 text-blue-700'
-                : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
-            }`}
-          >
-            📹 My Videos
-          </Link>
-          <Link
-            to="/upload"
-            className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
-              isActive('/upload')
-                ? 'bg-blue-50 border-blue-500 text-blue-700'
-                : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
-            }`}
-          >
-            📤 Upload Video
-          </Link>
-          <Link
-            to="/host"
-            className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
-              isActive('/host')
-                ? 'bg-blue-50 border-blue-500 text-blue-700'
-                : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
-            }`}
-          >
-            🎥 Host
-          </Link>
-          <Link
-            to="/viewer"
-            className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
-              isActive('/viewer')
-                ? 'bg-blue-50 border-blue-500 text-blue-700'
-                : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
-            }`}
-          >
-            👁️ Viewer
-          </Link>
-        </div>
-        <div className="pt-4 pb-3 border-t border-gray-200">
-          <div className="flex items-center px-4">
-            <div className="flex-shrink-0">
-              <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                <span className="text-sm font-medium text-gray-700">
-                  {user?.username?.charAt(0).toUpperCase()}
-                </span>
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-white shadow-lg animate-in slide-in-from-top-2 duration-200">
+          <div className="px-2 pt-2 pb-3 space-y-1">
+            {navigationItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={closeMenus}
+                className={`block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
+                  isActive(item.path)
+                    ? 'bg-blue-100 text-blue-700 border-l-4 border-blue-500'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                <span className="mr-2">{item.icon}</span>
+                {item.name}
+              </Link>
+            ))}
+          </div>
+          
+          {/* Mobile user section */}
+          <div className="pt-4 pb-3 border-t border-gray-200">
+            <div className="flex items-center px-4">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                  <span className="text-white font-medium text-sm">
+                    {user?.username?.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              </div>
+              <div className="ml-3">
+                <div className="text-base font-medium text-gray-800">{user?.username}</div>
+                <div className="text-sm text-gray-500">{user?.email}</div>
               </div>
             </div>
-            <div className="ml-3">
-              <div className="text-base font-medium text-gray-800">{user?.username}</div>
-              <div className="text-sm font-medium text-gray-500">{user?.email}</div>
+            <div className="mt-3">
+              <button
+                onClick={handleLogout}
+                className="block w-full text-left px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+              >
+                <span className="mr-2">🚪</span>
+                Sign out
+              </button>
             </div>
           </div>
-          <div className="mt-3 space-y-1">
-            <button
-              onClick={handleLogout}
-              className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-            >
-              🚪 Logout
-            </button>
-          </div>
         </div>
-      </div>
+      )}
     </nav>
   );
 };
