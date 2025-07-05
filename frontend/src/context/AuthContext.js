@@ -115,9 +115,32 @@ export const AuthProvider = ({ children }) => {
         stack: error.stack
       });
       
-      const errorMessage = error.response?.data?.message || 'Signup failed';
-      setError(errorMessage);
+      let responseData = error.response?.data;
+      let errorMessage = 'Signup failed';
       
+      if (error.response?.data?.errors && Array.isArray(error.response?.data?.errors)) {
+        
+        if (responseData.errors && Array.isArray(responseData.errors)) {
+          // Format 2: {"success":false,"message":"Validation failed","errors":[...]}
+          const firstError = responseData.errors[0];
+          if (firstError && firstError.msg) {
+            errorMessage = firstError.msg;
+          } else {
+            errorMessage = responseData.message || 'Validation failed';
+          }
+        }
+      } else if (responseData.message) {
+        // Format 1: {"success":false,"message":"Invalid email or password"}
+        errorMessage = responseData.message;
+      }  else if (error.request) {
+        // Request was made but no response received
+        errorMessage = 'Unable to connect to server';
+      } else {
+        // Something else happened
+        errorMessage = 'An unexpected error occurred';
+      }
+      
+      setError(errorMessage);
       console.log('❌ Signup failed, error set:', errorMessage);
       
       return { success: false, error: errorMessage };
@@ -152,15 +175,36 @@ export const AuthProvider = ({ children }) => {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        url: error.config?.url,
-        stack: error.stack
+        url: error.config?.url
       });
       
-      const errorMessage = error.response?.data?.message || 'Login failed';
+      let errorMessage = 'Login failed';
+      
+      if (error.response?.data) {
+        const responseData = error.response.data;
+        
+        // Handle the two specific error formats
+       if (responseData.errors && Array.isArray(responseData.errors)) {
+          // Format 2: {"success":false,"message":"Validation failed","errors":[...]}
+          const firstError = responseData.errors[0];
+          if (firstError && firstError.msg) {
+            errorMessage = firstError.msg;
+          } else {
+            errorMessage = responseData.message || 'Validation failed';
+          }
+        }else  if (responseData.message) {
+          // Format 1: {"success":false,"message":"Invalid email or password"}
+          errorMessage = responseData.message;
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage = 'Unable to connect to server';
+      } else {
+        // Something else happened
+        errorMessage = 'An unexpected error occurred';
+      }
+      
       setError(errorMessage);
-      
-      console.log('❌ Login failed, error set:', errorMessage);
-      
       return { success: false, error: errorMessage };
     }
   };

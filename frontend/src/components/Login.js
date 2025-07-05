@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ApiTest from './ApiTest';
+import Toast from './Toast';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -10,14 +11,15 @@ const Login = () => {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  const { login, error: authError, clearError, isAuthenticated } = useAuth();
+  const { login,  clearError, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/host');
+      navigate('/videos');
     }
   }, [isAuthenticated, navigate]);
 
@@ -73,10 +75,14 @@ const Login = () => {
     try {
       const result = await login(formData);
       if (result.success) {
-        navigate('/host');
+        navigate('/videos');
+        console.log('Login successful! inside handleSubmit');
+      } else {
+        setToast({ message: result.error || 'Login failed', type: 'error' });
       }
     } catch (error) {
       console.error('Login error:', error);
+      setToast({ message: 'An unexpected error occurred', type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -84,6 +90,15 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Sign in to your account
@@ -102,12 +117,6 @@ const Login = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Error Message */}
-            {authError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                {authError}
-              </div>
-            )}
 
             {/* Email Field */}
             <div>
@@ -181,11 +190,6 @@ const Login = () => {
             </div>
           </form>
         </div>
-      </div>
-
-      {/* API Test Component for Debugging */}
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <ApiTest />
       </div>
     </div>
   );

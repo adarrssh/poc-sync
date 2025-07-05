@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Toast from './Toast';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -11,14 +12,15 @@ const Signup = () => {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  const { signup, error: authError, clearError, isAuthenticated } = useAuth();
+  const { signup,clearError, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/host');
+      navigate('/videos');
     }
   }, [isAuthenticated, navigate]);
 
@@ -96,11 +98,15 @@ const Signup = () => {
     try {
       const { username, email, password } = formData;
       const result = await signup({ username, email, password });
+      console.log('Signup result:', result);
       if (result.success) {
-        navigate('/host');
+        navigate('/videos');
+      } else {
+        setToast({ message: result.error || 'Signup failed', type: 'error' });
       }
     } catch (error) {
       console.error('Signup error:', error);
+      setToast({ message: 'An unexpected error occurred', type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -108,6 +114,15 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Create your account
@@ -126,12 +141,6 @@ const Signup = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Error Message */}
-            {authError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                {authError}
-              </div>
-            )}
 
             {/* Username Field */}
             <div>
