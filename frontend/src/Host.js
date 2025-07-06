@@ -5,6 +5,8 @@ import { SOCKET_CONFIG } from './config';
 import { useAuth } from './context/AuthContext';
 import Hls from 'hls.js';
 import Chat from './components/Chat';
+import { FaRegCopy } from "react-icons/fa6";
+import { FiCopy } from "react-icons/fi";
 
 // Get video URL from query parameters or use default
 function getVideoUrl() {
@@ -43,6 +45,20 @@ export default function Host() {
   // Authentication
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Copy helpers
+  const [copiedRoomId, setCopiedRoomId] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const handleCopyRoomId = () => {
+    navigator.clipboard.writeText(roomId);
+    setCopiedRoomId(true);
+    setTimeout(() => setCopiedRoomId(false), 1200);
+  };
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 1200);
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -96,16 +112,23 @@ export default function Host() {
       setJoinStatus('Error: ' + (err.message || 'Could not join room'));
     });
     socket.on('viewer-joined', (data) => {
-      console.log(`Viewer joined the room! Viewer socketId: ${data.viewerId}, Room: ${data.roomId}`);
-      setViewers((prev) => prev.includes(data.viewerId) ? prev : [...prev, data.viewerId]);
+      // data: { viewerId, roomId, username }
+      console.log(`Viewer joined the room! Viewer socketId: ${data.viewerId}, Room: ${data.roomId}, Username: ${data.username}`);
+      setViewers((prev) => {
+        if (prev.some(v => v.id === data.viewerId)) return prev;
+        return [...prev, { id: data.viewerId, username: data.username }];
+      });
     });
     socket.on('viewers-list', (data) => {
-      setViewers(data.viewers);
+      // data.viewers: array of { id, username }
+      setViewers(Array.isArray(data.viewers)
+        ? data.viewers.map(v => typeof v === 'object' ? v : { id: v, username: v })
+        : []);
     });
     socket.on('user-left', (data) => {
       console.log(`User left: ${data.role} with socketId: ${data.socketId}`);
       if (data.role === 'viewer') {
-        setViewers((prev) => prev.filter(id => id !== data.socketId));
+        setViewers((prev) => prev.filter(v => v.id !== data.socketId));
       }
     });
     socket.on('request-video-state', (data) => {
@@ -226,9 +249,9 @@ export default function Host() {
   const shareUrl = `${window.location.origin}/viewer?roomId=${roomId}`;
 
   return (
-    <div className="h-full w-full flex flex-col items-center">
+    <div className="h-full w-full flex flex-col items-center bg-gray-50">
+      {/* Header */}
       <div className="w-full bg-white shadow-sm border-b px-6 py-4 flex justify-center">
-        {/* Page Header with Back button */}
         <div className="w-full max-w-7xl flex flex-row items-center justify-between lg:pl-8 lg:pr-10 ">
           <button
             onClick={() => navigate('/videos')}
@@ -248,44 +271,79 @@ export default function Host() {
         </div>
       </div>
 
-
-        {/* Main content */}
-        <div className="flex-1 flex">
-          {/* Video and controls section */}
-          <div className="flex-1 flex flex-col items-center justify-center px-6 py-2">
-            <div className="mb-2 text-gray-700">Room ID: <span className="font-mono">{roomId}</span></div>
-            <div className="mb-2 text-gray-700">Share this link with viewers:</div>
-            <div className="mb-4 font-mono text-blue-700 bg-blue-100 px-2 py-1 rounded break-all select-all">{shareUrl}</div>
-            <div className="mb-4 text-gray-700">Your Socket ID: <span className="font-mono">{socketId}</span></div>
-            {joinStatus && (
-              <div className={`mb-4 px-4 py-2 rounded ${joinStatus.startsWith('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{joinStatus}</div>
-            )}
-            <div className="mb-4 w-full max-w-2xl">
-              <div className="font-semibold mb-1">Viewers in Room:</div>
-              {viewers.length === 0 ? (
-                <div className="text-gray-500">No viewers have joined yet.</div>
-              ) : (
-                <ul className="list-disc pl-5">
-                  {viewers.map((id) => (
-                    <li key={id} className="font-mono text-sm text-gray-700">{id}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            
-            {/* HLS Video Player */}
+      {/* Main content */}
+      <div className="w-full h-full max-w-7xl flex-1 flex flex-row bg-gray-50">
+        {/* Left: Video and info */}
+        <div className="flex-1 flex flex-col items-start h-full min-h-0">
+          {/* Video Player Card */}
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-3xl mb-4 h-full flex flex-col">
             <video
               ref={videoRef}
               controls
-              className="w-full max-w-2xl rounded shadow"
+              className="w-full rounded-lg shadow"
+              style={{ aspectRatio: '16/5', minHeight: '400px', background: '#000' }}
             />
-          </div>
+            {/* Room info and viewers below video */}
+            <div className="mt-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4 w-full">
+              <div className="flex flex-col gap-4 w-full max-w-lg">
+                {/* Room ID Section */}
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-700 font-medium">Room ID:</span>
+                    <span className="font-mono font-semibold text-blue-700 text-base">{roomId}</span>
+                    <button
+                      onClick={handleCopyRoomId}
+                      className="p-1 rounded hover:bg-blue-100 transition-colors"
+                      title="Copy Room ID"
+                    >
+                      <FiCopy className="w-4 h-4 text-blue-700" />
+                    </button>
+                    {copiedRoomId && <span className="text-xs text-green-600 ml-1">Copied!</span>}
+                  </div>
+                </div>
 
-          {/* Chat sidebar */}
-          <div className="w-80 h-full">
+                {/* Share Link Section */}
+                <div>
+                  <div className="text-gray-700 font-medium mb-1">Share with viewers:</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-blue-700 bg-blue-50 px-2 py-1 rounded break-all select-all text-xs">
+                      {shareUrl}
+                    </span>
+                    <button
+                      onClick={handleCopyLink}
+                      className="p-1 rounded hover:bg-blue-100 transition-colors"
+                      title="Copy Link"
+                    >
+                      <FiCopy className="w-4 h-4 text-blue-700" />
+                    </button>
+                    {copiedLink && <span className="text-xs text-green-600 ml-1">Copied!</span>}
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 min-w-[220px] max-w-xs shadow-inner border border-gray-200">
+                <div className="font-semibold mb-2 text-gray-700 text-sm">Viewers in Room</div>
+                {viewers.length === 0 ? (
+                  <div className="text-gray-400 text-xs">No viewers have joined yet.</div>
+                ) : (
+                  <ul className="list-disc pl-5">
+                    {viewers.map((viewer) => (
+                      <li key={viewer.id || viewer.viewerId || viewer} className="font-mono text-xs text-gray-700 break-all">
+                        {viewer.username || viewer.id || viewer}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Right: Chat */}
+        <div className="w-full md:w-96 flex-shrink-0 h-full min-h-0">
+          <div className="bg-white rounded-xl shadow-lg p-4 h-full flex flex-col">
             <Chat socket={socketRef.current} roomId={roomId} />
           </div>
         </div>
+      </div>
     </div>
   );
 } 

@@ -211,19 +211,26 @@ export default function Viewer() {
 
   if (!ready) {
     return (
-      <div className="flex flex-col min-h-screen bg-gray-50">
-        {/* Page Header */}
-        <div className="bg-white shadow-sm border-b px-6 py-4">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold text-gray-900">Viewer View</h1>
-            {videoUrl && (
-              <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                Watching: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
-              </div>
-            )}
+      <div className="h-full w-full flex flex-col items-center bg-gray-50">
+        <div className="w-full bg-white shadow-sm border-b px-6 py-4 flex justify-center">
+          <div className="w-full max-w-7xl flex items-center justify-end lg:pl-8 lg:pr-10">
+            <button
+              onClick={() => navigate('/join')}
+              className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors h-10 mr-auto"
+              style={{minHeight: '2.5rem'}}
+            >
+              ← Back to Join Room
+            </button>
+            <div className="flex items-center gap-4 h-10" style={{minHeight: '2.5rem'}}>
+              <h1 className="text-2xl font-bold text-gray-900">Viewer View</h1>
+              {videoUrl && (
+                <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                  Watching: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
         {/* Main content */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
           <button
@@ -238,30 +245,40 @@ export default function Viewer() {
   }
 
   return (
-    <div className="flex flex-col bg-gray-50">
-      {/* Page Header */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900">Viewer View</h1>
+    <div className="h-full w-full flex flex-col items-center bg-gray-50">
+      <div className="w-full bg-white shadow-sm border-b px-6 py-4 flex justify-center">
+        <div className="w-full max-w-7xl flex items-center justify-end lg:pl-8 lg:pr-10">
+          <button
+            onClick={() => navigate('/join')}
+            className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors h-10 mr-auto"
+            style={{minHeight: '2.5rem'}}
+          >
+            ← Back to Join Room
+          </button>
+          <div className="flex items-center gap-4 h-10" style={{minHeight: '2.5rem'}}>
+            <h1 className="text-2xl font-bold text-gray-900">Viewer View</h1>
+            {videoUrl && (
+              <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                Watching: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
       {/* Main content */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex  h-full w-full max-w-7xl">
         {/* Video section */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
           {joinStatus && (
             <div className={`mb-4 px-4 py-2 rounded ${joinStatus.startsWith('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>{joinStatus}</div>
           )}
-          
           {/* HLS Video Player */}
           <video
             ref={videoRef}
-            controls={false} // Viewers don't need controls as they sync with host
+            controls={false}
             className="w-full max-w-2xl rounded shadow"
           />
         </div>
-
         {/* Chat sidebar */}
         <div className="w-80 h-full">
           {ready && socketRef.current ? (

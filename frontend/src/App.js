@@ -14,9 +14,9 @@ import JoinRoom from './components/JoinRoom';
 // Layout wrapper for protected routes
 const ProtectedLayout = ({ children }) => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen w-screen">
       <Navigation />
-      <main className="">
+      <main className="flex-1 w-full overflow-auto">
         {children}
       </main>
     </div>
