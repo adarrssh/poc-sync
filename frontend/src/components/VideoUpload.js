@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -8,11 +8,15 @@ const VideoUpload = () => {
   const [message, setMessage] = useState('');
   const { error, clearError } = useAuth();
   const navigate = useNavigate();
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const abortControllerRef = useRef(null);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
     clearError();
     setMessage('');
+    setUploadError('');
   };
 
   const handleUpload = async (e) => {
@@ -22,14 +26,21 @@ const VideoUpload = () => {
       return;
     }
 
+    setUploading(true);
+    setUploadError('');
+    setMessage('');
     const formData = new FormData();
     formData.append('video', file);
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       const response = await api.post('/api/upload/video', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
-        }
+        },
+        signal: abortController.signal
       });
       if (response.status === 200 || response.status === 201) {
         setMessage('Upload successful! Redirecting to your videos...');
@@ -37,12 +48,26 @@ const VideoUpload = () => {
           navigate('/videos');
         }, 2000);
       } else {
-        setMessage('Upload failed: ' + (response.data?.message || response.status));
+        setUploadError('Upload failed: ' + (response.data?.message || response.status));
       }
     } catch (err) {
-      console.error(err);
-      setMessage('Error: ' + (err.response?.data?.message || err.message));
+      if (err.name === 'CanceledError' || err.name === 'AbortError') {
+        setUploadError('Upload cancelled.');
+      } else {
+        setUploadError('Error: ' + (err.response?.data?.message || err.message));
+      }
+    } finally {
+      setUploading(false);
+      abortControllerRef.current = null;
     }
+  };
+
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setUploading(false);
+    setUploadError('Upload cancelled.');
   };
 
   return (
@@ -61,23 +86,44 @@ const VideoUpload = () => {
                   accept="video/*" 
                   onChange={handleFileChange}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  disabled={uploading}
                 />
               </div>
-              <button 
-                type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Upload Video
-              </button>
+              <div className="flex gap-4">
+                <button 
+                  type="submit"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-60"
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                      </svg>
+                      Uploading...
+                    </span>
+                  ) : 'Upload Video'}
+                </button>
+                {uploading && (
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="flex items-center px-4 py-2 rounded-md text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </form>
             {message && (
               <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-800">{message}</p>
               </div>
             )}
-            {error && (
+            {(error || uploadError) && (
               <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-red-800">{error}</p>
+                <p className="text-red-800">{error || uploadError}</p>
               </div>
             )}
           </div>
