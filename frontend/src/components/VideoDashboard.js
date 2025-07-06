@@ -5,9 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import Toast from './Toast';
 
 const getVideoTitle = (video) =>
-
-  video.originalName ||
-  'Untitled Video';
+  video.displayName?.trim() || video.originalName || 'Untitled Video';
 
 const getVideoDate = (video) => {
   const dateStr = video.createdAt || video.uploadedAt || video.date;

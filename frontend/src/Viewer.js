@@ -238,7 +238,7 @@ export default function Viewer() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col bg-gray-50">
       {/* Page Header */}
       <div className="bg-white shadow-sm border-b px-6 py-4">
         <div className="flex items-center space-x-4">

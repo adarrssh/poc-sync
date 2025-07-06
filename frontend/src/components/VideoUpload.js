@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 
 const VideoUpload = () => {
   const [file, setFile] = useState(null);
+  const [videoName, setVideoName] = useState("");
+  const [nameError, setNameError] = useState("");
   const [message, setMessage] = useState('');
   const { error, clearError } = useAuth();
   const navigate = useNavigate();
@@ -25,12 +27,19 @@ const VideoUpload = () => {
       setMessage('Please select a file.');
       return;
     }
+    if (!videoName.trim()) {
+      setNameError('Video name is required.');
+      return;
+    } else {
+      setNameError("");
+    }
 
     setUploading(true);
     setUploadError('');
     setMessage('');
     const formData = new FormData();
     formData.append('video', file);
+    formData.append('displayName', videoName);
 
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
@@ -88,6 +97,24 @@ const VideoUpload = () => {
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   disabled={uploading}
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Video Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={videoName}
+                  onChange={e => setVideoName(e.target.value)}
+                  placeholder="Enter a name for your video"
+                  className={`block w-full rounded-lg border-2 text-base px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm ${nameError ? 'border-red-500' : 'border-gray-300'} disabled:bg-gray-100`}
+                  maxLength={100}
+                  disabled={uploading}
+                  required
+                />
+                {nameError && (
+                  <p className="mt-1 text-sm text-red-600 font-medium">{nameError}</p>
+                )}
               </div>
               <div className="flex gap-4">
                 <button 

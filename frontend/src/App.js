@@ -9,6 +9,7 @@ import Host from './Host';
 import Viewer from './Viewer';
 import VideoUpload from './components/VideoUpload';
 import VideoDashboard from './components/VideoDashboard';
+import JoinRoom from './components/JoinRoom';
 
 // Layout wrapper for protected routes
 const ProtectedLayout = ({ children }) => {
@@ -72,6 +73,8 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          {/* Public join room page for viewers */}
+          <Route path="/join" element={<ProtectedLayout><JoinRoom /></ProtectedLayout>} />
           
           {/* Default redirect */}
           <Route path="*" element={<Navigate to="/videos" replace />} />
