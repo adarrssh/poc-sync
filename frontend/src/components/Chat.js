@@ -102,9 +102,9 @@ const Chat = ({ socket, roomId }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white border-l border-gray-200">
+    <div className="flex flex-col border  h-full">
       {/* Chat Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900">Chat</h3>
         <div className="flex items-center space-x-2">
           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
@@ -115,7 +115,7 @@ const Chat = ({ socket, roomId }) => {
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[400px] md:max-h-[600px]">
+      <div className="w-full h-full overflow-y-scroll p-4">
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             <div className="text-4xl mb-2">💬</div>

@@ -113,17 +113,16 @@ export default function Host() {
     });
     socket.on('viewer-joined', (data) => {
       // data: { viewerId, roomId, username }
-      console.log(`Viewer joined the room! Viewer socketId: ${data.viewerId}, Room: ${data.roomId}, Username: ${data.username}`);
+      console.log('viewer-joined', data);
       setViewers((prev) => {
         if (prev.some(v => v.id === data.viewerId)) return prev;
         return [...prev, { id: data.viewerId, username: data.username }];
       });
     });
     socket.on('viewers-list', (data) => {
-      // data.viewers: array of { id, username }
-      setViewers(Array.isArray(data.viewers)
-        ? data.viewers.map(v => typeof v === 'object' ? v : { id: v, username: v })
-        : []);
+      // data.viewers: array of { id, username } objects
+      console.log('viewers-list', data);
+      setViewers(Array.isArray(data.viewers) ? data.viewers : []);
     });
     socket.on('user-left', (data) => {
       console.log(`User left: ${data.role} with socketId: ${data.socketId}`);
@@ -251,8 +250,8 @@ export default function Host() {
   return (
     <div className="h-full w-full flex flex-col items-center bg-gray-50">
       {/* Header */}
-      <div className="w-full bg-white shadow-sm border-b px-6 py-4 flex justify-center">
-        <div className="w-full max-w-7xl flex flex-row items-center justify-between lg:pl-8 lg:pr-10 ">
+      <div className="w-full bg-white shadow-sm border-b py-4 flex justify-center px-8">
+        <div className="w-full flex flex-row items-center justify-between">
           <button
             onClick={() => navigate('/videos')}
             className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors h-10"
@@ -262,30 +261,37 @@ export default function Host() {
           </button>
           <div className="flex items-center gap-4 h-10" style={{minHeight: '2.5rem'}}>
             <h1 className="text-2xl font-bold text-gray-900">Host View</h1>
-            {videoUrl && videoUrl !== getVideoUrl() && (
+            {/* {videoUrl && videoUrl !== getVideoUrl() && (
               <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
                 Streaming: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
               </div>
-            )}
+            )} */}
           </div>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="w-full h-full max-w-7xl flex-1 flex flex-row bg-gray-50">
+      <div className="w-full h-full flex flex-row gap-5 p-4 overflow-y-hidden">
         {/* Left: Video and info */}
-        <div className="flex-1 flex flex-col items-start h-full min-h-0">
+        <div className="h-full w-[70%] flex-1 flex flex-col items-start">
           {/* Video Player Card */}
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-3xl mb-4 h-full flex flex-col">
-            <video
-              ref={videoRef}
-              controls
-              className="w-full rounded-lg shadow"
-              style={{ aspectRatio: '16/5', minHeight: '400px', background: '#000' }}
-            />
-            {/* Room info and viewers below video */}
-            <div className="mt-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4 w-full">
-              <div className="flex flex-col gap-4 w-full max-w-lg">
+          <div className="w-full h-full rounded-xl shadow-lg p-6 flex flex-col gap-5  bg-grey-50 border">
+            <div className="w-full h-[80%]">
+              <video
+                ref={videoRef}
+                controls
+                className="w-full rounded-lg shadow"
+                style={{ 
+                  aspectRatio: '16/5',  
+                  background: '#000',
+                  height: '100%'
+                }}
+                />
+            </div>
+            {/* Room info and viewers below video starts */}
+            <div className="flex flex-row justify-end gap-4 w-full h-[20%]">
+             
+              <div className="flex flex-col gap-4 w-full">
                 {/* Room ID Section */}
                 <div>
                   <div className="flex items-center gap-2">
@@ -320,26 +326,31 @@ export default function Host() {
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4 min-w-[220px] max-w-xs shadow-inner border border-gray-200">
+              
+              <div className="bg-gray-50 rounded-lg pl-4 pt-2 min-w-[220px] h-full overflow-scroll scrollbar-hide shadow-inner border border-gray-200">
                 <div className="font-semibold mb-2 text-gray-700 text-sm">Viewers in Room</div>
                 {viewers.length === 0 ? (
                   <div className="text-gray-400 text-xs">No viewers have joined yet.</div>
                 ) : (
                   <ul className="list-disc pl-5">
                     {viewers.map((viewer) => (
-                      <li key={viewer.id || viewer.viewerId || viewer} className="font-mono text-xs text-gray-700 break-all">
-                        {viewer.username || viewer.id || viewer}
+                      <li key={viewer.id} className="text-xs text-gray-700">
+                        {viewer.username || 'Unknown User'}
+                        {viewer.id === socketId && (
+                          <span className="ml-1 text-blue-600 font-medium">(You)</span>
+                        )}
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
             </div>
+            {/* Room info and viewers below video ends*/}
           </div>
         </div>
         {/* Right: Chat */}
-        <div className="w-full md:w-96 flex-shrink-0 h-full min-h-0">
-          <div className="bg-white rounded-xl shadow-lg p-4 h-full flex flex-col">
+        <div className="w-[30%] h-full overflow-hidden rounded-xl shadow-lg">
+          <div className="border rounded-xl  p-4 h-full flex flex-col overflow-y-hidden">
             <Chat socket={socketRef.current} roomId={roomId} />
           </div>
         </div>
