@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navigation from './components/Navigation';
 import Login from './components/Login';
@@ -14,7 +15,7 @@ import JoinRoom from './components/JoinRoom';
 // Layout wrapper for protected routes
 const ProtectedLayout = ({ children }) => {
   return (
-    <div className="flex flex-col h-screen w-screen">
+    <div className="flex flex-col h-screen w-screen bg-white dark:bg-gray-900 transition-colors duration-300">
       <Navigation />
       <main className="flex-1 w-full overflow-auto">
         {children}
@@ -26,60 +27,62 @@ const ProtectedLayout = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          
-          {/* Protected routes with navigation */}
-          <Route 
-            path="/host" 
-            element={
-              <ProtectedRoute>
-                <ProtectedLayout>
-                  <Host />
-                </ProtectedLayout>
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/viewer" 
-            element={
-              <ProtectedRoute>
-                <ProtectedLayout>
-                  <Viewer />
-                </ProtectedLayout>
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/videos" 
-            element={
-              <ProtectedRoute>
-                <ProtectedLayout>
-                  <VideoDashboard />
-                </ProtectedLayout>
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/upload" 
-            element={
-              <ProtectedRoute>
-                <ProtectedLayout>
-                  <VideoUpload />
-                </ProtectedLayout>
-              </ProtectedRoute>
-            } 
-          />
-          {/* Public join room page for viewers */}
-          <Route path="/join" element={<ProtectedLayout><JoinRoom /></ProtectedLayout>} />
-          
-          {/* Default redirect */}
-          <Route path="*" element={<Navigate to="/videos" replace />} />
-        </Routes>
-      </Router>
+      <ThemeProvider>
+        <Router>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            
+            {/* Protected routes with navigation */}
+            <Route 
+              path="/host" 
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Host />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/viewer" 
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Viewer />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/videos" 
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <VideoDashboard />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/upload" 
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <VideoUpload />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              } 
+            />
+            {/* Public join room page for viewers */}
+            <Route path="/join" element={<ProtectedLayout><JoinRoom /></ProtectedLayout>} />
+            
+            {/* Default redirect */}
+            <Route path="*" element={<Navigate to="/videos" replace />} />
+          </Routes>
+        </Router>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

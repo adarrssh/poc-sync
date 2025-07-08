@@ -6,7 +6,8 @@ import { useAuth } from './context/AuthContext';
 import Hls from 'hls.js';
 import Chat from './components/Chat';
 import { FaRegCopy } from "react-icons/fa6";
-import { FiCopy } from "react-icons/fi";
+import { FiCopy, FiUsers, FiShare2, FiArrowLeft } from "react-icons/fi";
+import { MdPlayArrow, MdPause, MdVolumeUp, MdFullscreen } from 'react-icons/md';
 
 // Get video URL from query parameters or use default
 function getVideoUrl() {
@@ -94,8 +95,6 @@ export default function Host() {
       }
     };
   }, [videoUrl]);
-
-
 
   useEffect(() => {
     const socket = io(SOCKET_CONFIG.url);
@@ -248,24 +247,25 @@ export default function Host() {
   const shareUrl = `${window.location.origin}/viewer?roomId=${roomId}`;
 
   return (
-    <div className="h-full w-full flex flex-col items-center bg-gray-50">
+    <div className="h-full w-full flex flex-col items-center bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       {/* Header */}
-      <div className="w-full bg-white shadow-sm border-b py-4 flex justify-center px-8">
+      <div className="w-full bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 py-4 flex justify-center px-8 transition-colors duration-300">
         <div className="w-full flex flex-row items-center justify-between">
           <button
             onClick={() => navigate('/videos')}
-            className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors h-10"
-            style={{minHeight: '2.5rem'}}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors duration-200"
           >
-            ← Back to My Videos
+            <FiArrowLeft className="w-4 h-4" />
+            Back to My Videos
           </button>
-          <div className="flex items-center gap-4 h-10" style={{minHeight: '2.5rem'}}>
-            <h1 className="text-2xl font-bold text-gray-900">Host View</h1>
-            {/* {videoUrl && videoUrl !== getVideoUrl() && (
-              <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                Streaming: {videoUrl.split('/').pop()?.split('?')[0] || 'Custom Video'}
-              </div>
-            )} */}
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Host View</h1>
+            <div className="flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/20 rounded-full">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                {viewers.length} {viewers.length === 1 ? 'viewer' : 'viewers'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -275,82 +275,93 @@ export default function Host() {
         {/* Left: Video and info */}
         <div className="h-full w-[70%] flex-1 flex flex-col items-start">
           {/* Video Player Card */}
-          <div className="w-full h-full rounded-xl shadow-lg p-6 flex flex-col gap-5  bg-grey-50 border">
-            <div className="w-full h-[80%]">
+          <div className="w-full h-full rounded-xl shadow-lg p-6 flex flex-col gap-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+            <div className="w-full h-[75%]">
               <video
                 ref={videoRef}
                 controls
-                className="w-full rounded-lg shadow"
+                className="w-full rounded-lg shadow-lg bg-black"
                 style={{ 
-                  aspectRatio: '16/5',  
+                  aspectRatio: '16/9',  
                   background: '#000',
                   height: '100%'
                 }}
-                />
+              />
             </div>
-            {/* Room info and viewers below video starts */}
-            <div className="flex flex-row justify-end gap-4 w-full h-[20%]">
-             
+            
+            {/* Room info and viewers below video */}
+            <div className="flex flex-row justify-between gap-4 w-full h-[25%]">
               <div className="flex flex-col gap-4 w-full">
                 {/* Room ID Section */}
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-700 font-medium">Room ID:</span>
-                    <span className="font-mono font-semibold text-blue-700 text-base">{roomId}</span>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-gray-700 dark:text-gray-200 font-medium text-sm">Room ID:</span>
+                    <span className="font-mono font-semibold text-blue-700 dark:text-blue-300 text-sm">{roomId}</span>
                     <button
                       onClick={handleCopyRoomId}
-                      className="p-1 rounded hover:bg-blue-100 transition-colors"
+                      className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
                       title="Copy Room ID"
                     >
-                      <FiCopy className="w-4 h-4 text-blue-700" />
+                      <FiCopy className="w-4 h-4 text-blue-700 dark:text-blue-300" />
                     </button>
-                    {copiedRoomId && <span className="text-xs text-green-600 ml-1">Copied!</span>}
+                    {copiedRoomId && <span className="text-xs text-green-600 dark:text-green-400 ml-1">Copied!</span>}
                   </div>
                 </div>
 
                 {/* Share Link Section */}
-                <div>
-                  <div className="text-gray-700 font-medium mb-1">Share with viewers:</div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FiShare2 className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                    <span className="text-gray-700 dark:text-gray-200 font-medium text-sm">Share with viewers:</span>
+                  </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-blue-700 bg-blue-50 px-2 py-1 rounded break-all select-all text-xs">
+                    <span className="font-mono text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded text-xs break-all select-all">
                       {shareUrl}
                     </span>
                     <button
                       onClick={handleCopyLink}
-                      className="p-1 rounded hover:bg-blue-100 transition-colors"
+                      className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
                       title="Copy Link"
                     >
-                      <FiCopy className="w-4 h-4 text-blue-700" />
+                      <FiCopy className="w-4 h-4 text-blue-700 dark:text-blue-300" />
                     </button>
-                    {copiedLink && <span className="text-xs text-green-600 ml-1">Copied!</span>}
+                    {copiedLink && <span className="text-xs text-green-600 dark:text-green-400 ml-1">Copied!</span>}
                   </div>
                 </div>
               </div>
               
-              <div className="bg-gray-50 rounded-lg pl-4 pt-2 min-w-[220px] h-full overflow-scroll scrollbar-hide shadow-inner border border-gray-200">
-                <div className="font-semibold mb-2 text-gray-700 text-sm">Viewers in Room</div>
+              {/* Viewers List */}
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 min-w-[220px] h-full overflow-y-auto shadow-inner border border-gray-200 dark:border-gray-600">
+                <div className="flex items-center gap-2 mb-3">
+                  <FiUsers className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                  <span className="font-semibold text-gray-700 dark:text-gray-200 text-sm">Viewers in Room</span>
+                </div>
                 {viewers.length === 0 ? (
-                  <div className="text-gray-400 text-xs">No viewers have joined yet.</div>
+                  <div className="text-gray-400 dark:text-gray-500 text-xs flex items-center gap-2">
+                    <div className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+                    No viewers have joined yet.
+                  </div>
                 ) : (
-                  <ul className="list-disc pl-5">
+                  <div className="space-y-2">
                     {viewers.map((viewer) => (
-                      <li key={viewer.id} className="text-xs text-gray-700">
-                        {viewer.username || 'Unknown User'}
+                      <div key={viewer.id} className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="truncate">{viewer.username || 'Unknown User'}</span>
                         {viewer.id === socketId && (
-                          <span className="ml-1 text-blue-600 font-medium">(You)</span>
+                          <span className="ml-1 text-blue-600 dark:text-blue-400 font-medium text-xs">(You)</span>
                         )}
-                      </li>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
             </div>
-            {/* Room info and viewers below video ends*/}
           </div>
         </div>
+        
         {/* Right: Chat */}
         <div className="w-[30%] h-full overflow-hidden rounded-xl shadow-lg">
-          <div className="border rounded-xl  p-4 h-full flex flex-col overflow-y-hidden">
+          <div className="border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 p-4 h-full flex flex-col overflow-y-hidden transition-colors duration-300">
             <Chat socket={socketRef.current} roomId={roomId} />
           </div>
         </div>
