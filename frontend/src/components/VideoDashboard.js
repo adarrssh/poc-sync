@@ -32,12 +32,10 @@ const VideoDashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      if (status) {
-        params.append('status', status);
-      }
-      const response = await api.get(`/api/upload/videos`);
+      const response = await api.get( status ? `/api/upload/videos?status=${status}` : `/api/upload/videos`);
       setVideos(response.data.videos);
     } catch (err) {
+      console.error('Error fetching videos:', err);
       setError(err.response?.data?.message || 'Failed to fetch videos');
     } finally {
       setLoading(false);
@@ -198,7 +196,15 @@ const VideoDashboard = () => {
                       <h2 className="text-lg font-bold text-gray-900 dark:text-white truncate mb-1">{getVideoTitle(video)}</h2>
                       {/* <p className="text-sm text-gray-500 truncate mb-2">{video.originalName || video.originalname || video.filename || ''}</p> */}
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${video.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : video.status === 'processing' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' : video.status === 'failed' ? 'bg-red-200 dark:bg-red-900/30 text-red-800 dark:text-red-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>{video.status || 'unknown'}</span>
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+  video.status === 'completed'
+    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+    : video.status === 'processing'
+    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+    : video.status === 'failed'
+    ? 'bg-red-200 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+}`}>{video.status || 'unknown'}</span>
                       </div>
                       <div className="text-xs text-gray-400 dark:text-gray-500 mb-2">Uploaded: {getVideoDate(video)}</div>
                       {/* Progress bar for processing videos */}
@@ -230,13 +236,22 @@ const VideoDashboard = () => {
                       )}
                     </div>
                     <div className="mt-4 flex gap-2">
-                      <button
-                        onClick={() => handleConvertToHLS(video)}
-                        className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm shadow hover:from-blue-700 hover:to-purple-700 transition-colors duration-150"
-                        disabled={video.status === 'processing'}
-                      >
-                        Prepare for Streaming
-                      </button>
+                      {video.status === 'uploaded' && (
+                        <button
+                          onClick={() => handleConvertToHLS(video)}
+                          className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm shadow hover:from-blue-700 hover:to-purple-700 transition-colors duration-150"
+                        >
+                          Prepare for Streaming
+                        </button>
+                      )}
+                      {video.status === 'completed' && (
+                        <button
+                          onClick={() => handleStreaming(video._id || video.id)}
+                          className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 text-white font-semibold text-sm shadow hover:from-blue-700 hover:to-violet-700 transition-colors duration-150"
+                        >
+                          Host / Watch
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDeleteVideo(video._id || video.id)}
                         className="px-3 py-2 rounded-lg bg-red-100 text-red-700 font-semibold text-sm shadow hover:bg-red-200 hover:text-red-800 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800 dark:hover:text-white transition-colors duration-150 flex items-center gap-1"
